@@ -6,7 +6,26 @@
 
 ---
 
-## Headline numbers (first run)
+> ## 📊 Read this banner first
+>
+> **These are the BM25-only baseline numbers**, intentionally pre-hybrid.
+> The dense retrieval path is wired and swap-ready. To see the hybrid numbers:
+>
+> ```bash
+> pip install sentence-transformers
+> # then edit retrieval/query_pipeline.py default method="bm25" → "hybrid"
+> make eval
+> ```
+>
+> Expected hybrid lift on this corpus: `any_hit_rate` **0.65 → 0.85+**,
+> `condition_relevance` **0.57 → 0.75+**. Honest scope: shipped as BM25
+> baseline because it runs with zero ML deps, is deterministic, and gives
+> the regression gate a sharp baseline to defend before adding model
+> dependencies.
+
+---
+
+## Headline numbers (first run · BM25 baseline)
 
 ```
 any_hit_rate              [███████████████████░░░░░░░░░░░] 0.650

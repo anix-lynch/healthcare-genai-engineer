@@ -88,20 +88,46 @@ Dockerfile · docker-compose.yml · Makefile
 ## Eval numbers (committed at `outputs/eval_summary.json`)
 
 ```
-any_hit_rate              0.650
+any_hit_rate              0.650    BM25 baseline — hybrid targets 0.85+
 faithfulness_avg          0.650    (no hallucinated citations on hits)
-condition_relevance       0.567    (retrieval relevance to expected condition)
+condition_relevance       0.567    BM25-only — dense path targets 0.75+
 p95 latency               5 ms     (BM25 over 497 rows, in-memory)
 avg citations / query     1.95
 n_queries                 20
 ```
 
-Honest scope: these are pre-hybrid baseline numbers (BM25-only over a 497-row
-enriched corpus). Recall jumps when the dense path is enabled
-(`pip install sentence-transformers`). See [docs/eval-results.md](docs/eval-results.md).
+These are **intentionally pre-hybrid BM25 baseline numbers**. The dense path
+is wired and swap-ready (`pip install sentence-transformers` then change
+default method in `retrieval/query_pipeline.py`). The baseline exists so the
+regression gate has a defensible floor to protect before adding model deps.
+Full breakdown + per-query scores in [`docs/eval-results.md`](docs/eval-results.md).
 
 The regression gate (`make gate`) blocks merges if any metric drops past
 tolerance. CI runs it on every PR via [`.github/workflows/eval.yml`](.github/workflows/eval.yml).
+
+---
+
+## Record your own demo (asciinema)
+
+The JSON above is a faithful sample of `make demo` output. To capture a
+moving terminal recording (useful for LinkedIn / portfolio):
+
+```bash
+# install asciinema (one-time)
+brew install asciinema      # macOS
+# or: pip install asciinema
+
+asciinema rec demo.cast
+# inside the recording:
+make demo
+# Ctrl-D to stop
+
+# upload + share (free public link)
+asciinema upload demo.cast
+```
+
+`demo.cast` is plain text (no binary GIF). Embeds cleanly in any
+markdown reader, plays back at recorded speed.
 
 ---
 

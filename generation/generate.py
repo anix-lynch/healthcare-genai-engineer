@@ -25,6 +25,10 @@ LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic").lower()
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
+# Hardcoded output cap for both providers. 400 tokens ≈ 4-5 sentence answer,
+# enough for grounded clinical reasoning without bloat. Tune here, not inline.
+MAX_GEN_TOKENS = int(os.environ.get("MAX_GEN_TOKENS", "400"))
+
 GROUNDED_PROMPT_TEMPLATE = """You are answering a clinical retrieval query.
 You MUST ground every claim in the retrieved snippets below. Each snippet
 has a source_id like "L1-NNNNNN". Cite the source_id inline when you reference it.
@@ -62,7 +66,7 @@ def _call_anthropic(prompt: str) -> str | None:
         client = anthropic.Anthropic()
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=400,
+            max_tokens=MAX_GEN_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.content[0].text.strip()
@@ -82,7 +86,7 @@ def _call_openai(prompt: str) -> str | None:
         client = OpenAI()
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
-            max_tokens=400,
+            max_tokens=MAX_GEN_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content.strip()
