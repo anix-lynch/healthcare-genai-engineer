@@ -7,7 +7,7 @@ Run:
 from __future__ import annotations
 from fastapi import FastAPI
 
-from app.routers import ask, health
+from app.routers import ask, health, web
 
 app = FastAPI(
     title="healthcare-genai-engineer",
@@ -18,6 +18,7 @@ app = FastAPI(
     ),
 )
 
+app.include_router(web.router, tags=["web"])           # GET / → single-page RAG visualizer
 app.include_router(health.router, tags=["meta"])
 app.include_router(ask.router, prefix="/v1", tags=["rag"])
 
