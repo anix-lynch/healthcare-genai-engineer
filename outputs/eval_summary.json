@@ -1,12 +1,12 @@
 {
-  "scanned_at": "2026-05-17T02:36:42Z",
+  "scanned_at": "2026-05-17T05:07:44Z",
   "k": 5,
   "n_queries": 20,
   "aggregates": {
     "any_hit_rate": 0.65,
     "faithfulness_avg": 0.65,
     "relevance_avg": 0.5667,
-    "p95_latency_ms": 5,
+    "p95_latency_ms": 6,
     "avg_citations": 1.95
   },
   "per_query": [
@@ -18,7 +18,7 @@
       "condition_relevance": 0.6666666666666666,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 5
+      "latency_ms": 6
     },
     {
       "id": "Q-002",

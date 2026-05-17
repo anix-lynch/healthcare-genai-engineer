@@ -1,37 +1,179 @@
 # healthcare-genai-engineer
 
-> **Focused presentation cut of [`healthcare-genai-fullstack`](https://github.com/anix-lynch/healthcare-genai-fullstack) — GenAI Engineer lens.**
+> **Healthcare RAG service** — FastAPI + BM25/dense hybrid retrieval + custom-proxy eval + PII guardrails + regression gate. One ER-triage workflow, end-to-end.
 
-This repo presents the **retrieval + generation + evaluation + guardrails** slice of the master monorepo, scoped to the GenAI Engineer workflow:
+[![eval-gate](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml/badge.svg)](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml)
 
-- one working RAG vertical
-- evaluation harness with visible numbers
-- guardrails and leakage protection
-- FastAPI service surface
-- runtime scaffolding (not a production deployment)
-
-It does **not** duplicate the full monorepo. Layer 1 data backbone, Layer 3 governance scripts, and full 7-pattern coverage live in the master repo.
-
----
-
-## Status
-
-🚧 Work in progress — incrementally extracted from the master monorepo.  
-See [`ROADMAP.md`](ROADMAP.md) for what is landing next, in small commits.
+```
+POST /v1/ask
+  → input guard (sanitize · injection scan · PII mask)
+  → BM25 retrieval over 497-row enriched healthcare corpus
+  → grounded answer (template baseline, LLM path behind USE_LLM flag)
+  → output guard (citation valid · forbidden actions · length)
+  → JSON response with cited source_ids + warnings
+```
 
 ---
 
-## Master monorepo
+## Quick demo (no server needed)
 
-Full architecture context (3 layers · 7 patterns · multi-cloud adapter):
+```bash
+git clone https://github.com/anix-lynch/healthcare-genai-engineer
+cd healthcare-genai-engineer
+make install
+make demo
+```
 
-→ https://github.com/anix-lynch/healthcare-genai-fullstack
+Output (live, just run it):
+
+```json
+{
+  "query": "62yo male chest pain hypertension",
+  "answer": "Based on similar past records, the most relevant precedent is L1-000085: \"62yo Male, Hypertension, Emergency admission, treated with Aspirin, test results Abnormal\". Additional supporting precedents: L1-000149, L1-000121. Total candidate cases returned: 5. This answer is grounded — every claim cites a retrieved source_id.",
+  "citations": [
+    {
+      "source_id": "L1-000085",
+      "snippet": "62yo Male, Hypertension, Emergency admission, treated with Aspirin, test results Abnormal",
+      "similarity": 0.617
+    },
+    {
+      "source_id": "L1-000149",
+      "snippet": "62yo Female, Hypertension, Emergency admission, treated with Aspirin, test results Abnormal",
+      "similarity": 0.559
+    },
+    {
+      "source_id": "L1-000121",
+      "snippet": "62yo Male, Arthritis, Emergency admission, treated with Ibuprofen, test results Abnormal",
+      "similarity": 0.471
+    }
+  ],
+  "method_used": "bm25",
+  "retrieved_count": 5,
+  "latency_ms": 6,
+  "warnings": []
+}
+```
 
 ---
 
-## Source of truth
+## What's inside
 
-This repo is a **presentation lens**, not an independent codebase.  
-When in doubt, the monorepo is authoritative.
+```
+app/                  FastAPI: main.py + schemas.py + dependencies.py
+                       + routers/ask.py · routers/health.py
+retrieval/            BM25 (from-scratch, Okapi k1=1.5/b=0.75)
+                       + dense (sentence-transformers MiniLM)
+                       + RRF hybrid fusion (k=60, Cormack & Buettcher)
+                       + chunking · vector_store · query_pipeline
+generation/           grounded answer + citation validation
+                       template baseline (default), LLM path via USE_LLM flag
+                       supports Anthropic OR OpenAI providers
+guardrails/           input_validator: sanitize + injection regex + token cap
+                       output_validator: citation + length + forbidden-action
+                       pii_masker: SSN · phone · email · CC · MRN · DOB
+evaluation/           golden_set.json (20 hand-curated queries)
+                       ragas_runner.py (custom-proxy faithfulness + relevance)
+                       regression_gate.py (exit 1 on metric drop past tolerance)
+                       baseline.json (committed snapshot)
+jobs/                 ingest_documents · build_index · refresh_eval
+data/raw/             497-row enriched healthcare corpus
+docs/eval-results.md  human-readable summary with ASCII bars
+demo/                 sample_queries.md (5 curl recipes)
+tests/                3 pytest cases over FastAPI TestClient
+Dockerfile · docker-compose.yml · Makefile
+```
 
-The goal here is **focused presentation**, not infrastructure invention.
+---
+
+## Eval numbers (committed at `outputs/eval_summary.json`)
+
+```
+any_hit_rate              0.650
+faithfulness_avg          0.650    (no hallucinated citations on hits)
+condition_relevance       0.567    (retrieval relevance to expected condition)
+p95 latency               5 ms     (BM25 over 497 rows, in-memory)
+avg citations / query     1.95
+n_queries                 20
+```
+
+Honest scope: these are pre-hybrid baseline numbers (BM25-only over a 497-row
+enriched corpus). Recall jumps when the dense path is enabled
+(`pip install sentence-transformers`). See [docs/eval-results.md](docs/eval-results.md).
+
+The regression gate (`make gate`) blocks merges if any metric drops past
+tolerance. CI runs it on every PR via [`.github/workflows/eval.yml`](.github/workflows/eval.yml).
+
+---
+
+## Common commands
+
+```bash
+make install     # pip install requirements
+make serve       # uvicorn on :8000
+make demo        # fire one /v1/ask via TestClient, print JSON
+make test        # pytest tests/
+make eval        # run golden-set, write outputs/eval_summary.json
+make gate        # compare vs baseline, exit 1 on regression
+make clean       # remove __pycache__ + .pytest_cache + outputs/
+```
+
+Or with Docker:
+
+```bash
+docker compose up --build       # service on :8000 with HEALTHCHECK
+curl localhost:8000/health
+```
+
+---
+
+## LLM-enhanced mode (optional)
+
+The default `generation/generate.py` uses a deterministic template (zero LLM
+cost, deterministic output, useful as a faithfulness baseline). To swap in a
+real LLM call:
+
+```bash
+export USE_LLM=true
+export LLM_PROVIDER=anthropic         # or openai
+export ANTHROPIC_API_KEY=...          # or OPENAI_API_KEY
+make serve
+```
+
+The LLM path:
+- sends a grounded prompt with the retrieved snippets
+- enforces inline `source_id` citations
+- falls back to the template if the provider errors or the SDK isn't installed
+- never raises — the caller always gets a structured response
+
+---
+
+## Healthcare context
+
+Synthetic 497-row corpus with chief complaint, HPI, vitals, lab flags, and
+ESI ground-truth tags. Patient identity resolver bridges 55K encounters → 40K
+unique patients so the cross-patient leak guard has real surface area to defend.
+
+Out of scope (intentionally): real EHR / FHIR feeds, HIPAA BAA, multi-cloud
+deployment, autonomous decisioning. The repo is one focused healthcare-RAG
+vertical, not a hospital system.
+
+---
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the phase-ordered audit trail (Phase 1 → 6,
+each with the commit hash that shipped it).
+
+---
+
+## Related repos
+
+- [healthcare-ai-data-engineer](https://github.com/anix-lynch/healthcare-ai-data-engineer) — Layer 1 data backbone (dbt medallion + FastAPI + enrichment + quality gate)
+- [healthcare-forward-deployed-engineer](https://github.com/anix-lynch/healthcare-forward-deployed-engineer) — customer-deployment package (integrations + runbook + acceptance tests + Docker)
+- [healthcare-genai-fullstack](https://github.com/anix-lynch/healthcare-genai-fullstack) — full 3-layer monorepo (this repo is the GenAI Engineer slice)
+
+---
+
+## License
+
+MIT.

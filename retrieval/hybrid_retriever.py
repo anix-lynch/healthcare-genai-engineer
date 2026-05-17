@@ -104,6 +104,8 @@ def hybrid_search(
             "case_id": doc_id,
             "snippet": src.get("snippet", ""),
             "score": round(rrf_score, 6),     # RRF score (not BM25 / cosine)
-            "rrf_source": "bm25+dense" if not dense_failed else "bm25_only",
+            "rrf_source": (
+                "bm25+dense" if (dense_rank and not dense_failed) else "bm25_only"
+            ),
         })
     return out

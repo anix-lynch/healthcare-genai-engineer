@@ -1,0 +1,47 @@
+name: eval-gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Unit + integration tests (FastAPI TestClient — no uvicorn needed)
+      - name: make test
+        run: make test
+
+      # Eval harness — golden-set + custom-proxy faithfulness/relevance
+      # Writes outputs/eval_summary.json
+      - name: make eval
+        run: make eval
+
+      # Regression gate — compares vs evaluation/baseline.json
+      # Exits 1 if any tracked metric drops past tolerance
+      - name: make gate
+        run: make gate
+
+      # Surface the JSON as a build artifact so PR reviewers can inspect
+      - name: Upload eval summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-summary
+          path: outputs/eval_summary.json
+          retention-days: 30
