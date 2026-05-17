@@ -1,0 +1,17 @@
+services:
+  genai-engineer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: healthcare-genai-engineer:0.1.0
+    container_name: genai-engineer
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./outputs:/app/outputs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
