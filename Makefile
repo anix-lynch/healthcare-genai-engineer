@@ -1,4 +1,4 @@
-.PHONY: install serve demo test clean
+.PHONY: install serve demo test eval gate clean
 
 install:
 	pip install -r requirements.txt
@@ -17,6 +17,14 @@ print(json.dumps(r.json(), indent=2))"
 test:
 	pytest tests/ -v
 
+# Run the 20-query golden set, write outputs/eval_summary.json
+eval:
+	python -m evaluation.ragas_runner
+
+# Compare current eval vs baseline; exit 1 on regression past tolerance
+gate:
+	python -m evaluation.regression_gate
+
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
-	rm -rf .pytest_cache
+	rm -rf .pytest_cache outputs/

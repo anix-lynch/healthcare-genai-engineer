@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "description": "20 hand-curated golden queries derived from the 497-row enriched holdout. Each query has an expected source_id pattern (condition + demographic match). Self-test: a sane retriever should rank a matching row in top-K.",
+  "queries": [
+    {"id": "Q-001", "query": "62yo male chest pain hypertension",          "expects_condition": "Hypertension", "expects_gender": "Male",   "min_age": 55, "max_age": 70},
+    {"id": "Q-002", "query": "elderly female chest pain emergency",         "expects_condition": "Hypertension", "expects_gender": "Female", "min_age": 65, "max_age": 90},
+    {"id": "Q-003", "query": "diabetic patient with hyperglycemia",         "expects_condition": "Diabetes",     "expects_gender": null,     "min_age": 30, "max_age": 85},
+    {"id": "Q-004", "query": "asthma attack respiratory distress",          "expects_condition": "Asthma",       "expects_gender": null,     "min_age": 20, "max_age": 80},
+    {"id": "Q-005", "query": "cancer patient emergency admission",          "expects_condition": "Cancer",       "expects_gender": null,     "min_age": 35, "max_age": 90},
+    {"id": "Q-006", "query": "obesity bariatric complication",              "expects_condition": "Obesity",      "expects_gender": null,     "min_age": 30, "max_age": 75},
+    {"id": "Q-007", "query": "arthritis joint pain ibuprofen",              "expects_condition": "Arthritis",    "expects_gender": null,     "min_age": 30, "max_age": 90},
+    {"id": "Q-008", "query": "young male diabetes insulin",                 "expects_condition": "Diabetes",     "expects_gender": "Male",   "min_age": 20, "max_age": 40},
+    {"id": "Q-009", "query": "female cancer chemo paracetamol",             "expects_condition": "Cancer",       "expects_gender": "Female", "min_age": 30, "max_age": 75},
+    {"id": "Q-010", "query": "geriatric hypertension aspirin",              "expects_condition": "Hypertension", "expects_gender": null,     "min_age": 70, "max_age": 95},
+    {"id": "Q-011", "query": "child fever urgent care",                     "expects_condition": null,           "expects_gender": null,     "min_age": 0,  "max_age": 18},
+    {"id": "Q-012", "query": "chest pressure diaphoresis jaw radiation",    "expects_condition": "Hypertension", "expects_gender": null,     "min_age": 40, "max_age": 90},
+    {"id": "Q-013", "query": "septic shock low blood pressure",             "expects_condition": null,           "expects_gender": null,     "min_age": 30, "max_age": 90},
+    {"id": "Q-014", "query": "stroke symptoms slurred speech weakness",     "expects_condition": "Hypertension", "expects_gender": null,     "min_age": 50, "max_age": 95},
+    {"id": "Q-015", "query": "neutropenic fever cancer chemo",              "expects_condition": "Cancer",       "expects_gender": null,     "min_age": 30, "max_age": 80},
+    {"id": "Q-016", "query": "acute MI substernal pressure",                "expects_condition": "Hypertension", "expects_gender": null,     "min_age": 45, "max_age": 85},
+    {"id": "Q-017", "query": "pediatric respiratory distress wheezing",     "expects_condition": "Asthma",       "expects_gender": null,     "min_age": 0,  "max_age": 18},
+    {"id": "Q-018", "query": "elderly fall head strike anticoagulant",      "expects_condition": "Hypertension", "expects_gender": null,     "min_age": 75, "max_age": 95},
+    {"id": "Q-019", "query": "diabetic ketoacidosis vomiting",              "expects_condition": "Diabetes",     "expects_gender": null,     "min_age": 18, "max_age": 60},
+    {"id": "Q-020", "query": "asthma exacerbation silent chest hypoxia",    "expects_condition": "Asthma",       "expects_gender": null,     "min_age": 18, "max_age": 70}
+  ]
+}
