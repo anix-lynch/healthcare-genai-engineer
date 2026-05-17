@@ -2,7 +2,7 @@
 
 > **Focused presentation cut of [`healthcare-genai-fullstack`](https://github.com/anix-lynch/healthcare-genai-fullstack) — GenAI Engineer lens.**
 
-This repo presents the **retrieval + generation + evaluation + guardrails** slice of the master monorepo, narrowed for the GenAI Engineer interview signal:
+This repo presents the **retrieval + generation + evaluation + guardrails** slice of the master monorepo, scoped to the GenAI Engineer workflow:
 
 - one working RAG vertical
 - evaluation harness with visible numbers
@@ -34,4 +34,4 @@ Full architecture context (3 layers · 7 patterns · multi-cloud adapter):
 This repo is a **presentation lens**, not an independent codebase.  
 When in doubt, the monorepo is authoritative.
 
-The goal here is **interview clarity**, not infrastructure invention.
+The goal here is **focused presentation**, not infrastructure invention.
