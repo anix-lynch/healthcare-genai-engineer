@@ -282,7 +282,7 @@ _HTML = """<!doctype html>
       </a>
       <div class="rounded-lg border border-[var(--border)] bg-[var(--border)]/20 p-2.5 opacity-70">
         <p class="font-semibold text-[var(--ink-2)]">🔮 Crystal Ball (regress LOS)</p>
-        <p class="text-[var(--ink-3)] mt-0.5">deferred · 497-row corpus too thin for bragable R²</p>
+        <p class="text-[var(--ink-3)] mt-0.5">deferred · 497-row corpus too thin for production-grade R²</p>
       </div>
       <div class="rounded-lg border border-[var(--border)] bg-[var(--border)]/20 p-2.5 opacity-70">
         <p class="font-semibold text-[var(--ink-2)]">🧬 Cluster · patient grouping</p>
