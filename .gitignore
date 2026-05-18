@@ -14,3 +14,6 @@ venv/
 build/
 dist/
 _outreach/
+
+# Dense index baked into Docker image at build time (NOT source)
+data/dense_index.npz

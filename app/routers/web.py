@@ -98,12 +98,10 @@ _HTML = """<!doctype html>
     <section class="panel p-5">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2"><span>🔀</span><h2 class="font-semibold text-[14px]">RETRIEVAL</h2></div>
-        <div class="inline-flex items-center gap-2 text-[11px]">
-          <span class="px-2.5 py-1 rounded-md bg-[var(--accent)] text-white font-medium">BM25 · live</span>
-          <span class="px-2.5 py-1 rounded-md bg-[var(--border)] text-[var(--ink-3)]"
-                title="Dense + Hybrid RRF live in the repo + CI eval. Trimmed from the Cloud Run image to keep cold-start &lt;1s. See README + evaluation/baseline.json for full method comparison.">
-            Dense · Hybrid (RRF) → local only
-          </span>
+        <div id="methodToggle" class="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-[12px]">
+          <button class="toggle-btn active px-3 py-1.5" data-method="bm25" title="Okapi BM25 keyword retrieval">BM25</button>
+          <button class="toggle-btn px-3 py-1.5 border-l border-[var(--border)]" data-method="dense" title="FastEmbed BGE-small dense semantic retrieval (ONNX, 384-dim)">Dense</button>
+          <button class="toggle-btn px-3 py-1.5 border-l border-[var(--border)]" data-method="hybrid" title="BM25 + Dense fused via Reciprocal Rank Fusion (k=60)">Hybrid (RRF)</button>
         </div>
       </div>
       <div id="citations" class="space-y-2.5">
@@ -155,12 +153,20 @@ _HTML = """<!doctype html>
     const $citations = document.getElementById('citations');
     const $methodTag = document.getElementById('methodTag');
     const $liveLatency = document.getElementById('liveLatency');
-    const activeMethod = 'bm25';  // Cloud Run image is BM25-only by design
+    let activeMethod = 'bm25';
 
     // chip → fill textarea
     document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
       $q.value = b.dataset.q;
       $q.focus();
+    }));
+
+    // method toggle — re-fetch if there's already a query
+    document.querySelectorAll('#methodToggle .toggle-btn').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('#methodToggle .toggle-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      activeMethod = b.dataset.method;
+      if ($q.value.trim()) ask();
     }));
 
     // Ask
@@ -213,25 +219,36 @@ _HTML = """<!doctype html>
       const query = $q.value.trim();
       if (!query) { $q.focus(); return; }
       shimmerCards();
-      $methodTag.textContent = 'bm25…';
+      $methodTag.textContent = activeMethod + '…';
+      // 30s abort: dense + hybrid may pay ~5s on cold-start corpus encode
+      // (FastEmbed encodes 497 snippets once, then cached).
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const timer = setTimeout(() => ctrl.abort(), 30000);
       try {
         const r = await fetch('/v1/ask', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ query, k:5, method:'bm25' }),
+          body: JSON.stringify({ query, k:5, method: activeMethod }),
           signal: ctrl.signal,
         });
         clearTimeout(timer);
         const data = await r.json();
         if (!r.ok) { renderError(data.detail || data); return; }
         renderCitations(data);
-        $methodTag.textContent = (data.method_used || 'bm25') + '_only';
+        // method_used reflects what actually ran (server-side may fall back).
+        const used = data.method_used || activeMethod;
+        $methodTag.textContent = used === 'hybrid' ? 'bm25 + dense (RRF)' :
+                                 used === 'dense'  ? 'bge_small_en (ONNX)' :
+                                                     'bm25_only';
         if (typeof data.latency_ms === 'number') $liveLatency.textContent = data.latency_ms + ' ms';
       } catch (e) {
         clearTimeout(timer);
-        renderError({ error: e.name === 'AbortError' ? 'timeout' : 'network', message: String(e) });
+        renderError({
+          error: e.name === 'AbortError' ? 'timeout' : 'network',
+          message: e.name === 'AbortError'
+            ? 'Cold-start corpus encode exceeded 30s — first dense/hybrid call after idle is slow. Retry.'
+            : String(e),
+        });
       }
     }
   </script>

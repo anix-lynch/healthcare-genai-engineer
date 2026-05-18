@@ -26,7 +26,7 @@ gcloud run deploy "$SERVICE" \
     --project "$PROJECT" \
     --platform managed \
     --allow-unauthenticated \
-    --memory 1Gi \
+    --memory 2Gi \
     --cpu 1 \
     --timeout 300 \
     --min-instances 0 \

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal
 
 
-Method = Literal["bm25", "hybrid"]
+Method = Literal["bm25", "dense", "hybrid"]
 
 
 class AskRequest(BaseModel):
