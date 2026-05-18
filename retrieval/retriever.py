@@ -47,16 +47,80 @@ def _tokenize(text: str) -> list[str]:
 
 # ── Snippet builder for Layer 1 row ────────────────────────────────────────
 def _row_to_snippet(row: dict) -> str:
+    """Render one enriched corpus row into a BM25/dense-friendly snippet.
+
+    Snippet shape (kept under ~400 chars to keep BM25 + FastEmbed fast):
+
+       "29yo Female · Arthritis · Emergency · Lipitor · Normal labs
+        · CC: Severe joint pain and swelling in hands and knees
+        · HPI: 29F acute polyarticular pain, no fever, no trauma...
+        · vitals: bp 128/82 hr 86 rr 16 spo2 99 temp 98.7
+        · ESI 3 · flags: none"
+
+    Why so much:
+        Earlier we used the 6-field demographic-only snippet, which left
+        ~80% of the enriched row's signal on the floor. Dense retrieval
+        hit a ceiling at Hit@5=0.75 because paraphrases like "elephant
+        on chest" had nowhere to land in token-space. Surfacing CC + HPI
+        + vitals + ESI tier into the snippet text lets BOTH retrievers
+        (keyword + semantic) match real clinical narrative tokens.
+
+    Source-of-truth: the canonical enriched corpus lives in the
+    `healthcare-api` repo (L1 substrate) at
+    `data/raw/healthcare_dataset_enriched.csv`. The copy in this repo
+    at `data/raw/healthcare_dataset.csv` is the same 497 rows; rebuild
+    via `cp ~/dev/healthcare-api/data/raw/healthcare_dataset_enriched.csv
+    ./data/raw/healthcare_dataset.csv` then redeploy (Dockerfile
+    re-runs scripts/build_dense_index.py at build time).
+    """
     age = row.get("Age", "")
     gender = row.get("Gender", "")
     condition = row.get("Medical Condition", "")
-    admission_type = row.get("Admission Type", "")
+    admission = row.get("Admission Type", "")
     medication = row.get("Medication", "")
     test_results = row.get("Test Results", "")
-    return (
-        f"{age}yo {gender}, {condition}, {admission_type} admission, "
-        f"treated with {medication}, test results {test_results}"
-    )
+    cc = (row.get("chief_complaint") or "").strip()
+    hpi = (row.get("hpi") or "").strip()
+    esi = row.get("esi_tier_truth")
+    flags = (row.get("acuity_red_flags") or "").strip() or "none"
+
+    # Vitals block — only include populated readings; skip blanks.
+    vitals_parts = []
+    bp_s, bp_d = row.get("bp_systolic"), row.get("bp_diastolic")
+    if bp_s and bp_d:
+        vitals_parts.append(f"bp {bp_s}/{bp_d}")
+    for label, key in (("hr", "heart_rate"), ("rr", "respiratory_rate"),
+                       ("spo2", "spo2_pct"), ("temp", "temperature_f")):
+        val = row.get(key)
+        if val:
+            vitals_parts.append(f"{label} {val}")
+    vitals = " ".join(vitals_parts) or "n/a"
+
+    # Trim HPI to keep snippet under budget. Sentence-bounded if possible.
+    hpi_trimmed = hpi[:180]
+    if len(hpi) > 180:
+        cut = hpi_trimmed.rfind(". ")
+        if cut > 80:
+            hpi_trimmed = hpi[:cut + 1]
+        hpi_trimmed += "…"
+
+    parts = [
+        f"{age}yo {gender}",
+        f"{condition}",
+        f"{admission}",
+        f"{medication}",
+        f"{test_results} labs",
+    ]
+    if cc:
+        parts.append(f"CC: {cc}")
+    if hpi_trimmed:
+        parts.append(f"HPI: {hpi_trimmed}")
+    parts.append(f"vitals: {vitals}")
+    if esi not in (None, "", "nan"):
+        parts.append(f"ESI {esi}")
+    parts.append(f"flags: {flags}")
+
+    return " · ".join(parts)
 
 
 # ── Index ──────────────────────────────────────────────────────────────────

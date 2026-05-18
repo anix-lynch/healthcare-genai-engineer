@@ -50,9 +50,12 @@ METHODS = ("bm25", "dense", "hybrid")
 K = 5         # for Hit@K, Precision@K
 NDCG_K = 10   # NDCG cutoff
 
-# snippet shape: "62yo Male, Hypertension, Emergency admission, ..."
+# Snippet shape (post-enrichment): leading 3 bullet-separated fields:
+#     "29yo Female · Arthritis · Emergency · Lipitor · Normal labs · CC: …"
+# Accept either bullet (·) or comma (legacy) so this regex tolerates a
+# round-trip if the snippet format ever reverts.
 _SNIPPET_RX = re.compile(
-    r"^(?P<age>\d+)yo\s+(?P<gender>Male|Female)\s*,\s*(?P<condition>[A-Za-z ]+?)\s*,",
+    r"^(?P<age>\d+)yo\s+(?P<gender>Male|Female)\s*[·,]\s*(?P<condition>[A-Za-z ]+?)\s*[·,]",
     re.I,
 )
 
