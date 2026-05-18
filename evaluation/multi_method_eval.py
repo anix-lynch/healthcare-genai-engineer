@@ -30,17 +30,21 @@ and gates merges on metric drift.
 from __future__ import annotations
 import json
 import math
+import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
 
-from fastapi.testclient import TestClient
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = REPO_ROOT / "evaluation" / "golden_set.json"
 OUT = REPO_ROOT / "evaluation" / "baseline_multi.json"
+
+# If RAG_API_BASE is set, hit a live URL via httpx instead of TestClient.
+# Used to score against the deployed Cloud Run image (which has the
+# pre-baked FastEmbed dense index — local Python 3.14 can't load it).
+LIVE_BASE = os.environ.get("RAG_API_BASE", "").rstrip("/")
 
 METHODS = ("bm25", "dense", "hybrid")
 K = 5         # for Hit@K, Precision@K
@@ -101,8 +105,12 @@ def _ndcg_at_k(rels: list[int], k: int) -> float:
     return _dcg(rels) / idcg if idcg > 0 else 0.0
 
 
-def _score_one(client: TestClient, q: dict, method: str, *, k: int = K) -> dict:
-    """Run one golden query through /v1/ask and compute retrieval metrics."""
+def _score_one(client, q: dict, method: str, *, k: int = K) -> dict:
+    """Run one golden query through /v1/ask and compute retrieval metrics.
+
+    `client` is either a FastAPI TestClient (local in-process) or an
+    httpx.Client pointed at a deployed URL (RAG_API_BASE).
+    """
     resp = client.post(
         "/v1/ask",
         json={"query": q["query"], "k": NDCG_K, "method": method},
@@ -154,8 +162,15 @@ def _aggregate(rows: list[dict]) -> dict:
 
 
 def main() -> int:
-    from app.main import app
-    client = TestClient(app)
+    if LIVE_BASE:
+        import httpx
+        client = httpx.Client(base_url=LIVE_BASE, timeout=60.0)
+        print(f"[multi_eval] hitting LIVE: {LIVE_BASE}")
+    else:
+        from fastapi.testclient import TestClient
+        from app.main import app
+        client = TestClient(app)
+        print(f"[multi_eval] hitting LOCAL TestClient")
 
     queries = json.loads(GOLDEN.read_text())["queries"]
     print(f"[multi_eval] {len(queries)} golden queries × {len(METHODS)} methods")
