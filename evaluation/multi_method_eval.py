@@ -6,11 +6,11 @@ EvalPanel in app/routers/web.py reads from, and the file regression_gate
 compares against.
 
 Why these five metrics:
-   Hit@K          → "did we find anything relevant?"  (95%+ = bragable)
-   Precision@K    → "how clean is top-K?"             (60%+ = bragable)
-   MRR            → "how high did we rank the first   (0.80+ = bragable)
+   Hit@K          → "did we find anything relevant?"  (95%+ = industry bar)
+   Precision@K    → "how clean is top-K?"             (60%+ = industry bar)
+   MRR            → "how high did we rank the first   (0.80+ = industry bar)
                      relevant doc?"
-   NDCG@K         → "is the ranking ORDER good, not   (0.85+ = bragable)
+   NDCG@K         → "is the ranking ORDER good, not   (0.85+ = industry bar)
                      just presence?"
    p95 latency    → "how fast end-to-end?"            (varies)
 

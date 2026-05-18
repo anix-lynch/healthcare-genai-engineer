@@ -40,6 +40,7 @@ class AskResponse(BaseModel):
     esi_confidence: float | None = Field(None, ge=0.0, le=1.0, description="fused confidence ∈ [0,1] (1.0 = rule+RAG agree)")
     esi_disagreement: bool = Field(False, description="True iff rule fired AND RAG predicted a different tier")
     esi_red_flags: list[str] = Field(default_factory=list, description="rule-based safety triggers that fired")
+    esi_votes: dict[int, int] = Field(default_factory=dict, description="per-tier raw vote count from top-K retrieved cases (e.g. {2:4, 3:1} → '4× ESI 2 · 1× ESI 3')")
 
 
 class HealthResponse(BaseModel):

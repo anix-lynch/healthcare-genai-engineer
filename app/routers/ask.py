@@ -74,7 +74,7 @@ def ask(req: AskRequest, pipeline: QueryPipeline = Depends(get_pipeline)) -> Ask
     #    weighted-votes the esi_tier_truth labels of the top-K retrieved
     #    cases. Production pattern: rules-as-floor + ML-as-lift.
     rule_tier, red_flags = rule_based_esi(clean_query)
-    rag_tier, rag_conf = rag_knn_esi(hits)
+    rag_tier, rag_conf, rag_votes = rag_knn_esi(hits)
     esi_final, esi_conf, disagreement = fuse_esi(rule_tier, red_flags, rag_tier, rag_conf)
     if disagreement:
         warnings.append(
@@ -96,4 +96,5 @@ def ask(req: AskRequest, pipeline: QueryPipeline = Depends(get_pipeline)) -> Ask
         esi_confidence=esi_conf,
         esi_disagreement=disagreement,
         esi_red_flags=red_flags,
+        esi_votes=rag_votes,
     )

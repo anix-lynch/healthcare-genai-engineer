@@ -133,32 +133,38 @@ def _esi_from_snippet(snippet: str) -> int | None:
     return None
 
 
-def rag_knn_esi(hits: Iterable[dict]) -> tuple[int | None, float]:
+def rag_knn_esi(hits: Iterable[dict]) -> tuple[int | None, float, dict[int, int]]:
     """KNN-vote ESI from retrieved cases.
 
     Weighted vote: each top-K hit contributes its esi_tier_truth label
-    weighted by its similarity score. Returns (esi_predicted, confidence).
+    weighted by its similarity score. Returns (esi_predicted, confidence,
+    per-tier vote counts).
 
-    confidence = winning vote share ∈ [0, 1]
-       1.0 → all retrieved cases agreed
-       0.4 → close 3-way tie (low confidence)
+    Returns:
+        (winning_tier, confidence, votes_count)
+        - winning_tier: int 1-5 or None
+        - confidence: winning vote share ∈ [0, 1]
+        - votes_count: {tier: raw count} — unweighted, for UI display
+                       e.g. {2: 4, 3: 1} → "4× ESI 2 · 1× ESI 3"
 
-    Returns (None, 0.0) if no hits or no labels recoverable.
+    Returns (None, 0.0, {}) if no hits or no labels recoverable.
     """
-    votes: Counter = Counter()
+    votes_weight: Counter = Counter()
+    votes_count: Counter = Counter()
     weight_total = 0.0
     for h in hits:
         tier = _esi_from_snippet(h.get("snippet", ""))
         if tier is None:
             continue
-        w = max(0.01, float(h.get("score", 0.01)))  # never 0 weight
-        votes[tier] += w
+        w = max(0.01, float(h.get("score", 0.01)))
+        votes_weight[tier] += w
+        votes_count[tier] += 1
         weight_total += w
-    if not votes or weight_total == 0:
-        return None, 0.0
-    winning_tier, winning_weight = votes.most_common(1)[0]
+    if not votes_weight or weight_total == 0:
+        return None, 0.0, {}
+    winning_tier, winning_weight = votes_weight.most_common(1)[0]
     confidence = winning_weight / weight_total
-    return int(winning_tier), round(confidence, 3)
+    return int(winning_tier), round(confidence, 3), dict(votes_count)
 
 
 # SAFETY-FLOOR rule prefixes — these are non-negotiable per FDE

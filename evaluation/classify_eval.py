@@ -47,7 +47,7 @@ if not LIVE_BASE:
 # down to 100-row holdout for faster iteration. Bump to all 497 for final.
 HOLDOUT_N = int(os.environ.get("HOLDOUT_N", "100"))
 K = 5
-METHOD = "dense"  # the bragable retrieval path; rule-only is always same
+METHOD = "dense"  # the primary retrieval path; rule-only is always same
 
 
 def _stratified_holdout(rows: list[dict], n: int = HOLDOUT_N) -> list[dict]:

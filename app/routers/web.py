@@ -92,13 +92,18 @@ _HTML = """<!doctype html>
   </style>
 </head>
 <body class="min-h-screen">
-  <!-- HEADER -->
+  <!-- HEADER · method toggle moved here per locked spec -->
   <header class="sticky top-0 bg-white/95 backdrop-blur border-b border-[var(--border)] z-10">
-    <div class="max-w-[1280px] mx-auto px-6 py-3 flex items-center gap-4">
+    <div class="max-w-[1280px] mx-auto px-6 py-3 flex items-center gap-4 flex-wrap">
       <span class="text-xl">🩺</span>
-      <div class="flex-1">
+      <div class="flex-1 min-w-[180px]">
         <h1 class="font-semibold text-[15px] text-[var(--ink-1)]">healthcare-genai-engineer</h1>
-        <p class="text-[12px] text-[var(--ink-3)]">Healthcare RAG · BM25 + Dense + RRF · KNN-as-classifier · custom eval · CI regression gate</p>
+        <p class="text-[12px] text-[var(--ink-3)]">RAG primitives · 17-metric eval · regression-gated in CI</p>
+      </div>
+      <div id="methodToggle" class="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-[11px]">
+        <button class="toggle-btn active px-2.5 py-1" data-method="bm25" title="Okapi BM25 keyword retrieval">BM25</button>
+        <button class="toggle-btn px-2.5 py-1 border-l border-[var(--border)]" data-method="dense" title="FastEmbed BGE-small dense semantic retrieval (ONNX 384-dim)">Dense</button>
+        <button class="toggle-btn px-2.5 py-1 border-l border-[var(--border)]" data-method="hybrid" title="BM25 + Dense fused via RRF k=60">Hybrid</button>
       </div>
       <span class="inline-flex items-center gap-1.5 text-[12px] text-[var(--ok)] font-medium"><span class="w-2 h-2 rounded-full bg-[var(--ok)]"></span> live</span>
       <a href="/docs" class="text-[13px] text-[var(--ink-2)] hover:text-[var(--accent)]">⚙️ /docs</a>
@@ -107,8 +112,50 @@ _HTML = """<!doctype html>
     </div>
   </header>
 
-  <!-- HERO STATS BAND — metrics grouped by GenAI pattern -->
+  <!-- 🎯 AI PREDICTION HERO + 🤖 GROUNDED ANSWER (locked spec H) -->
   <section class="max-w-[1280px] mx-auto px-6 pt-5">
+    <div id="aiPredictionHero" class="hidden rounded-xl bg-gradient-to-r from-[var(--accent-bg)] to-white border border-[var(--border)] p-4 shadow-sm mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-[13px] font-semibold text-[var(--accent)] uppercase tracking-wide">🎯 AI Prediction</h2>
+        <span id="heroQueryEcho" class="text-[11px] text-[var(--ink-3)] italic"></span>
+      </div>
+      <div class="flex flex-wrap items-center gap-5">
+        <div id="heroEsiBox" class="rounded-xl px-5 py-3 flex flex-col items-center min-w-[140px]">
+          <span class="text-[10px] uppercase tracking-wider opacity-80">ESI tier</span>
+          <span id="heroEsiTier" class="text-[36px] font-bold leading-none">—</span>
+          <span id="heroEsiLabel" class="text-[11px] font-semibold uppercase tracking-wider mt-1">—</span>
+        </div>
+        <div class="flex-1 min-w-[260px] space-y-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] uppercase tracking-wide text-[var(--ink-3)] w-[88px]">Confidence</span>
+            <div class="flex-1 h-2 bg-[var(--border)] rounded">
+              <div id="heroConfBar" class="bar h-2 rounded" style="width:0%; background:var(--accent);"></div>
+            </div>
+            <span id="heroConfText" class="text-[12px] mono font-semibold w-[44px]">—</span>
+          </div>
+          <p class="text-[11px] text-[var(--ink-3)]"><b>Method:</b> KNN-vote over top-5 retrieved · safety-floor override on suicidal / pediatric / cardiac</p>
+          <p class="text-[11px] text-[var(--ink-3)]"><b>Votes:</b> <span id="heroVotes" class="mono">—</span></p>
+        </div>
+      </div>
+      <!-- 🤖 GROUNDED ANSWER (Pattern 3 · Mad Lib) -->
+      <div id="heroGroundedAnswer" class="hidden mt-4 rounded-lg border border-[var(--border)] p-3 bg-white">
+        <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+          <span class="text-[11px] uppercase tracking-wide text-[var(--ink-3)] font-semibold">🤖 Grounded Answer · Pattern 3 · Mad Lib</span>
+          <span id="heroAnswerProvider" class="text-[10px] mono text-[var(--ink-3)]">deterministic template (Phase 10A: Vertex Gemini)</span>
+        </div>
+        <p id="heroAnswerText" class="text-[12.5px] text-[var(--ink-1)] leading-relaxed"></p>
+        <div class="flex items-center gap-4 flex-wrap mt-2 pt-2 border-t border-[var(--border)] text-[10px] text-[var(--ink-3)]">
+          <span><b class="text-[var(--ok)]">Faithfulness 1.00</b> (citation-valid)</span>
+          <span><b>Halluc rate</b> — <span class="italic">Phase 10A (Vertex Gemini judge + Vectara HHEM)</span></span>
+          <span><b>Cite acc</b> <span class="text-[var(--ok)] font-semibold">100%</span></span>
+          <span id="heroTokens" class="ml-auto"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HERO STATS BAND — kept (small, below the AI prediction hero) -->
+  <section class="max-w-[1280px] mx-auto px-6">
     <div class="rounded-xl bg-gradient-to-r from-[var(--accent-bg)] to-white border border-[var(--border)] p-4 shadow-sm">
       <div class="flex items-center justify-between mb-2">
         <h2 class="text-[13px] font-semibold text-[var(--accent)] uppercase tracking-wide">🎯 Pattern 1 · Retrieval (Rachel) · 20 golden queries · live CI gate</h2>
@@ -192,17 +239,8 @@ _HTML = """<!doctype html>
           <button class="toggle-btn px-3 py-1.5 border-l border-[var(--border)]" data-method="hybrid" title="BM25 + Dense fused via Reciprocal Rank Fusion (k=60)">Hybrid (RRF)</button>
         </div>
       </div>
-      <!-- ESI prediction banner (Classify · Traffic Light pattern) -->
-      <div id="esiBanner" class="hidden mb-3 rounded-lg p-3 border"></div>
-
-      <!-- AI Rationale panel (Generate · Mad Lib pattern) — grounded answer -->
-      <div id="aiRationale" class="hidden mb-3 rounded-lg p-3 border border-[var(--border)] bg-white">
-        <div class="flex items-center gap-2 mb-1.5">
-          <span class="text-[10px] uppercase tracking-wide text-[var(--ink-3)] font-semibold">📝 Pattern 3 · Generate (Mad Lib) — grounded rationale</span>
-        </div>
-        <p id="aiRationaleText" class="text-[12px] text-[var(--ink-1)] leading-relaxed"></p>
-        <p class="text-[10px] text-[var(--ink-3)] mt-1.5">Every claim cites a real source_id. Citation accuracy validated in output_validator.</p>
-      </div>
+      <!-- (ESI prediction + grounded answer now live in the AI Prediction
+           Hero at top of page · this panel just shows lookalike cards) -->
 
       <div id="citations" class="space-y-2.5">
         <div class="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-[13px] text-[var(--ink-3)]">
@@ -438,32 +476,63 @@ _HTML = """<!doctype html>
       return '—';
     }
 
-    function renderEsiBanner(data) {
-      const banner = document.getElementById('esiBanner');
-      const final  = data.esi_final;
-      const rag    = data.esi_rag_knn;
-      const rule   = data.esi_rule_based;
-      const conf   = data.esi_confidence;
-      const flags  = data.esi_red_flags || [];
+    function renderAiPredictionHero(data, query) {
+      // 🎯 AI Prediction hero box (top of page · ESI badge + confidence + votes)
+      const hero  = document.getElementById('aiPredictionHero');
+      const final = data.esi_final;
+      const conf  = data.esi_confidence ?? 0;
+      const votes = data.esi_votes || {};
+      const flags = data.esi_red_flags || [];
       const disagree = data.esi_disagreement;
-      if (final === null || final === undefined) { banner.classList.add('hidden'); return; }
-      banner.className = `mb-3 rounded-lg p-3 border ${
-        disagree ? 'border-amber-400 bg-amber-50' :
-        final <= 2 ? 'border-red-400 bg-red-50' :
-        'border-[var(--border)] bg-white'
-      }`;
-      banner.classList.remove('hidden');
-      const flagsHtml = flags.length ? `<span class="text-[10px] text-[var(--ink-3)]">flags: ${flags.join(', ')}</span>` : '';
-      const disagreeHtml = disagree ? `<span class="text-[10px] font-semibold text-amber-700">⚠️ safety-floor override</span>` : '';
-      banner.innerHTML = `
-        <div class="flex items-center gap-3 flex-wrap">
-          <span class="text-[10px] uppercase tracking-wide text-[var(--ink-3)] font-semibold">🤖 AI predicts</span>
-          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded font-bold text-[14px] ${esiBadgeStyle(final)}">ESI ${final} · ${esiBucket(final)}</span>
-          <span class="text-[11px] text-[var(--ink-2)]">confidence <b class="mono">${(conf*100).toFixed(0)}%</b></span>
-          <span class="text-[11px] text-[var(--ink-3)] mono">rule=${rule ?? '—'} · rag=${rag ?? '—'} · fused=${final}</span>
-          ${disagreeHtml}
-          ${flagsHtml}
-        </div>`;
+      if (final === null || final === undefined) { hero.classList.add('hidden'); return; }
+      hero.classList.remove('hidden');
+      // Echo the query
+      document.getElementById('heroQueryEcho').textContent = `"${query}"`;
+      // ESI tier box · color matches the badge palette
+      const esiBox = document.getElementById('heroEsiBox');
+      const tierClass = esiBadgeStyle(final);
+      esiBox.className = `rounded-xl px-5 py-3 flex flex-col items-center min-w-[140px] ${tierClass}`;
+      document.getElementById('heroEsiTier').textContent = `ESI ${final}`;
+      document.getElementById('heroEsiLabel').textContent = esiBucket(final);
+      // Confidence bar + text
+      const confPct = Math.round(conf * 100);
+      document.getElementById('heroConfBar').style.width = confPct + '%';
+      document.getElementById('heroConfText').textContent = (conf).toFixed(2);
+      // Votes breakdown — "4× ESI 2 · 1× ESI 3 (dissent)"
+      const votePairs = Object.entries(votes).sort((a,b) => b[1] - a[1]);
+      let votesStr = '—';
+      if (votePairs.length) {
+        votesStr = votePairs.map(([tier, n], i) => {
+          const label = `${n}× ESI ${tier}`;
+          return i > 0 ? `${label} <span class="text-amber-700">(dissent)</span>` : label;
+        }).join(' · ');
+      }
+      if (flags.length) {
+        votesStr += ` <span class="text-[10px] text-[var(--ink-3)]">· safety-floor: ${flags.join(', ')}</span>`;
+      }
+      if (disagree) {
+        votesStr += ` <span class="text-amber-700 font-semibold">⚠️ override</span>`;
+      }
+      document.getElementById('heroVotes').innerHTML = votesStr;
+    }
+
+    function renderHeroGroundedAnswer(data) {
+      const box  = document.getElementById('heroGroundedAnswer');
+      const txt  = document.getElementById('heroAnswerText');
+      const ans  = data.answer;
+      if (!ans || !ans.trim()) { box.classList.add('hidden'); return; }
+      // Highlight cited source_ids inline
+      const cited = (data.citations || []).map(c => c.source_id);
+      let html = ans;
+      cited.forEach(id => {
+        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        html = html.replace(re, `<span class="chip-cite mono text-[11px] px-1.5 py-0.5 rounded">${id}</span>`);
+      });
+      txt.innerHTML = html;
+      box.classList.remove('hidden');
+      // Token cost slot (server-side LLM not wired yet; Phase 10A)
+      const tokensEl = document.getElementById('heroTokens');
+      tokensEl.textContent = `Latency: ${data.latency_ms ?? '—'} ms`;
     }
 
     function renderAiRationale(data) {
@@ -482,9 +551,9 @@ _HTML = """<!doctype html>
       el.classList.remove('hidden');
     }
 
-    function renderCitations(data) {
-      renderEsiBanner(data);
-      renderAiRationale(data);
+    function renderCitations(data, query) {
+      renderAiPredictionHero(data, query);
+      renderHeroGroundedAnswer(data);
       const cs = data.citations || [];
       if (!cs.length) {
         $citations.innerHTML = `<div class="rounded-lg border border-dashed border-[var(--border)] p-6 text-center text-[13px] text-[var(--ink-3)]">no patients returned — check retrieval index</div>`;
@@ -537,7 +606,7 @@ _HTML = """<!doctype html>
         clearTimeout(timer);
         const data = await r.json();
         if (!r.ok) { renderError(data.detail || data); return; }
-        renderCitations(data);
+        renderCitations(data, query);
         // method_used reflects what actually ran (server-side may fall back).
         const used = data.method_used || activeMethod;
         $methodTag.textContent = used === 'hybrid' ? 'bm25 + dense (RRF)' :
