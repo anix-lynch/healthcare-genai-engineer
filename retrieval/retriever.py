@@ -30,6 +30,13 @@ from pathlib import Path
 from collections import Counter, defaultdict
 from typing import Iterable
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 # ── Defaults ───────────────────────────────────────────────────────────────
 DEFAULT_CORPUS = (
     Path(__file__).resolve().parents[1] / "data" / "raw" / "healthcare_dataset.csv"
@@ -231,6 +238,7 @@ def _ensure_index() -> BM25Index:
 
 
 # ── Public API ─────────────────────────────────────────────────────────────
+@_weave_op
 def search(query: str, k: int = 10) -> list[dict]:
     """
     Return top-k past cases ranked by BM25 against the query.

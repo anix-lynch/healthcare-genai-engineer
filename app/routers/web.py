@@ -247,6 +247,44 @@ _HTML = """<!doctype html>
           👉 click a chip or type a chief complaint to find similar past patients
         </div>
       </div>
+
+      <!-- ⚡ LIVE TRACE — per-node waterfall, hidden until first query -->
+      <div id="liveTrace" class="hidden mt-4 pt-4 border-t border-[var(--border)]">
+        <div class="flex items-center gap-1.5 mb-2.5">
+          <span class="text-[11px] font-semibold text-[var(--ink-3)] uppercase tracking-wide">⚡ Live Trace</span>
+          <span class="text-[10px] text-[var(--ink-3)]">· this request</span>
+        </div>
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] mono text-[var(--ink-3)] w-[62px]">guard</span>
+            <div class="flex-1 h-2 bg-[var(--border)] rounded overflow-hidden">
+              <div id="traceBarGuard" class="bar h-2 rounded" style="width:0%; background:#6b7a90;"></div>
+            </div>
+            <span id="traceGuardMs" class="text-[11px] mono w-[38px] text-right">—</span>
+            <span id="traceGuardFlag" class="text-[10px]"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] mono text-[var(--ink-3)] w-[62px]">retrieve</span>
+            <div class="flex-1 h-2 bg-[var(--border)] rounded overflow-hidden">
+              <div id="traceBarRetrieve" class="bar h-2 rounded" style="width:0%; background:var(--accent);"></div>
+            </div>
+            <span id="traceRetrieveMs" class="text-[11px] mono w-[38px] text-right">—</span>
+            <span class="text-[10px] text-[var(--ink-3)]"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] mono text-[var(--ink-3)] w-[62px]">generate</span>
+            <div class="flex-1 h-2 bg-[var(--border)] rounded overflow-hidden">
+              <div id="traceBarGenerate" class="bar h-2 rounded" style="width:0%; background:var(--ok);"></div>
+            </div>
+            <span id="traceGenerateMs" class="text-[11px] mono w-[38px] text-right">—</span>
+            <span class="text-[10px] text-[var(--ink-3)]"></span>
+          </div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-[var(--border)] flex items-center justify-between text-[10px] text-[var(--ink-3)]">
+          <span id="traceWandbWrap">wandb trace: <a id="traceWandbLink" href="https://wandb.ai/alynch-zeroshot/healthcare-genai" target="_blank" class="text-[var(--accent)] hover:underline">project lobby ↗</a> <span id="traceWandbHint" class="text-[var(--ink-3)] italic">(no WANDB_API_KEY — set to enable per-request deep-link)</span></span>
+          <span id="traceTotalMs" class="mono font-semibold"></span>
+        </div>
+      </div>
     </section>
 
     <!-- 3. EVAL PANEL — per-method retrieval benchmarks -->
@@ -587,6 +625,41 @@ _HTML = """<!doctype html>
       }).join('');
     }
 
+    function renderTrace(data) {
+      const panel = document.getElementById('liveTrace');
+      const gMs   = data.guard_ms    ?? 0;
+      const rMs   = data.retrieve_ms ?? 0;
+      const genMs = data.generate_ms ?? 0;
+      const total = gMs + rMs + genMs || 1;
+      // bar widths relative to slowest node so bars fill meaningfully
+      const maxMs = Math.max(gMs, rMs, genMs, 1);
+      document.getElementById('traceBarGuard').style.width    = Math.round(gMs   / maxMs * 100) + '%';
+      document.getElementById('traceBarRetrieve').style.width = Math.round(rMs   / maxMs * 100) + '%';
+      document.getElementById('traceBarGenerate').style.width = Math.round(genMs / maxMs * 100) + '%';
+      document.getElementById('traceGuardMs').textContent    = gMs   + ' ms';
+      document.getElementById('traceRetrieveMs').textContent = rMs   + ' ms';
+      document.getElementById('traceGenerateMs').textContent = genMs + ' ms';
+      document.getElementById('traceTotalMs').textContent    = 'total ' + data.latency_ms + ' ms';
+      const flagEl = document.getElementById('traceGuardFlag');
+      const gtype = data.guard_type || (data.guard_triggered ? 'pii' : 'none');
+      if (gtype === 'pii') { flagEl.textContent = '⚠️ PII'; flagEl.title = 'PII detected and redacted'; }
+      else                 { flagEl.textContent = '✅';     flagEl.title = 'clean'; }
+      // Deep-link the wandb trace URL to *this* request when call_id is present.
+      const linkEl = document.getElementById('traceWandbLink');
+      const hintEl = document.getElementById('traceWandbHint');
+      const callId = data.trace_call_id;
+      if (callId) {
+        linkEl.href = 'https://wandb.ai/alynch-zeroshot/healthcare-genai/r/call/' + encodeURIComponent(callId);
+        linkEl.textContent = 'call ' + callId.slice(0, 8) + '… ↗';
+        hintEl.textContent = '';
+      } else {
+        linkEl.href = 'https://wandb.ai/alynch-zeroshot/healthcare-genai';
+        linkEl.textContent = 'project lobby ↗';
+        hintEl.textContent = '(Weave not initialized — set WANDB_API_KEY to enable per-request deep-link)';
+      }
+      panel.classList.remove('hidden');
+    }
+
     async function ask() {
       const query = $q.value.trim();
       if (!query) { $q.focus(); return; }
@@ -607,6 +680,7 @@ _HTML = """<!doctype html>
         const data = await r.json();
         if (!r.ok) { renderError(data.detail || data); return; }
         renderCitations(data, query);
+        renderTrace(data);
         // method_used reflects what actually ran (server-side may fall back).
         const used = data.method_used || activeMethod;
         $methodTag.textContent = used === 'hybrid' ? 'bm25 + dense (RRF)' :

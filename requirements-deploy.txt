@@ -2,6 +2,7 @@ fastapi>=0.110
 uvicorn[standard]>=0.27
 pydantic>=2.0
 numpy>=1.26
+weave>=0.51
 # Dense retrieval via FastEmbed (ONNX runtime, no torch).
 # ~30 MB model · ~300 MB image vs sentence-transformers' ~1.5 GB
 # Cold-start ~2-3s vs ~10s.

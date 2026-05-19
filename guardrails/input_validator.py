@@ -10,6 +10,13 @@ If any layer fails → raise InputGuardError. Caller maps to HTTP 400.
 from __future__ import annotations
 import re
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 MAX_INPUT_CHARS = 4000
 
 # Conservative prompt-injection patterns. Not exhaustive — would expand with
@@ -44,6 +51,7 @@ def _scan_injection(text: str) -> list[str]:
     return hits
 
 
+@_weave_op
 def validate_input(text: str, *, max_chars: int = MAX_INPUT_CHARS) -> str:
     """
     Run all input checks. Return sanitized text or raise InputGuardError.

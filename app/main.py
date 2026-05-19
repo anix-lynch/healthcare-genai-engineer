@@ -5,9 +5,18 @@ Run:
     uvicorn app.main:app --reload --port 8000
 """
 from __future__ import annotations
+import os
 from fastapi import FastAPI
 
 from app.routers import ask, health, web
+
+# Weave tracing — no-op if WANDB_API_KEY is absent (local dev without key)
+if os.environ.get("WANDB_API_KEY"):
+    try:
+        import weave
+        weave.init("alynch-zeroshot/healthcare-genai")
+    except Exception:
+        pass
 
 app = FastAPI(
     title="healthcare-genai-engineer",

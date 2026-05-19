@@ -7,6 +7,13 @@ encoder is missing.
 from __future__ import annotations
 from typing import Literal
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 from .retriever import search as _bm25_search
 from . import dense as _dense
 from .hybrid_retriever import hybrid_search as _hybrid_search
@@ -17,6 +24,7 @@ Method = Literal["bm25", "dense", "hybrid"]
 class QueryPipeline:
     """Lightweight retrieval facade for the /ask endpoint."""
 
+    @_weave_op
     def retrieve(
         self,
         query: str,

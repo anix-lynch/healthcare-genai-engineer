@@ -97,6 +97,22 @@ healthcare-genai-engineer/
    ☑ demo/           sample_queries.md (5 curl commands + expected outputs)
    ☑ Dockerfile      python:3.11-slim + HEALTHCHECK
    ☑ docker-compose.yml
+
+☑️ Phase 7 — OBSERVABILITY / TELEMETRY                       commit pending
+   ☑ weave.init() at app boot (gated on WANDB_API_KEY)
+   ☑ @weave.op on validate_input (guardrails/input_validator.py)
+   ☑ @weave.op on generate_answer (generation/generate.py)
+   ☑ @weave.op on hybrid_search (retrieval/hybrid_retriever.py)
+   ☑ @weave.op on _bm25_search — default path now traced (retrieval/retriever.py)
+   ☑ @weave.op on _dense_search (retrieval/dense.py)
+   ☑ @weave.op on QueryPipeline.retrieve facade hop
+   ☑ @weave.op on _build_response — single root call per /ask request
+   ☑ Live timing panel: guard_ms / retrieve_ms / generate_ms (per request)
+   ☑ guard_type field separates pii (200) from injection/length/empty (400)
+   ☑ schemas.py docstring matches actual semantics
+   ☑ AskResponse.trace_call_id returned per request
+   ☑ Frontend deep-links wandb trace to /r/call/<id> when call_id present
+   ☑ Honest fallback copy when WANDB_API_KEY absent ("project lobby ↗")
 ```
 
 ---

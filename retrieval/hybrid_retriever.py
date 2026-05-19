@@ -22,6 +22,13 @@ Wraps:
 """
 from __future__ import annotations
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 from .retriever import search as _bm25_search
 from . import dense as _dense
 
@@ -53,6 +60,7 @@ def reciprocal_rank_fusion(
     return ordered[:top_k]
 
 
+@_weave_op
 def hybrid_search(
     query: str,
     *,

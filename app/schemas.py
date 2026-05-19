@@ -41,6 +41,21 @@ class AskResponse(BaseModel):
     esi_disagreement: bool = Field(False, description="True iff rule fired AND RAG predicted a different tier")
     esi_red_flags: list[str] = Field(default_factory=list, description="rule-based safety triggers that fired")
     esi_votes: dict[int, int] = Field(default_factory=dict, description="per-tier raw vote count from top-K retrieved cases (e.g. {2:4, 3:1} → '4× ESI 2 · 1× ESI 3')")
+    # Per-node trace timings (ms). Populated on every request for the live trace panel.
+    guard_ms: int = Field(0, ge=0, description="input-guardrail latency ms")
+    retrieve_ms: int = Field(0, ge=0, description="retrieval latency ms")
+    generate_ms: int = Field(0, ge=0, description="generation latency ms")
+    # Guard telemetry — PII-only on the 200 path. Injection / length / empty
+    # patterns short-circuit with HTTP 400 (detail.guard_type names which
+    # rule fired) and never reach this response model. So on a 200 response,
+    # guard_triggered == (guard_type == "pii"). Kept as two fields so a
+    # future non-PII soft trigger can populate guard_type without breaking
+    # the boolean contract.
+    guard_triggered: bool = Field(False, description="True iff a soft guard fired on the 200 path (currently only PII redaction).")
+    guard_type: Literal["none", "pii"] = Field("none", description="Which soft guard fired on the 200 path. Injection/length/empty are HTTP 400 — see error detail.guard_type.")
+    # Weave call ID for this request — enables deep-link to the trace tree.
+    # None when Weave is not initialized (no WANDB_API_KEY) or capture failed.
+    trace_call_id: str | None = Field(None, description="Weave call ID for this request's root trace; pair with WEAVE_PROJECT to build a deep link.")
 
 
 class HealthResponse(BaseModel):

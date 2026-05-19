@@ -18,6 +18,14 @@ else. Citations validated against the hit set after generation.
 """
 from __future__ import annotations
 import os
+
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 from .citations import extract_citations
 
 USE_LLM = os.environ.get("USE_LLM", "false").lower() in ("1", "true", "yes")
@@ -124,6 +132,7 @@ def _template_answer(query: str, hits: list[dict]) -> str:
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
+@_weave_op
 def generate_answer(query: str, hits: list[dict]) -> dict:
     """Produce a grounded answer + citation list from retrieved hits.
 

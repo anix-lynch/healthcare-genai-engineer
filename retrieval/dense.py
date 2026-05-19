@@ -36,6 +36,13 @@ from typing import Iterable, Optional, TYPE_CHECKING
 
 import numpy as np
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 if TYPE_CHECKING:
     from fastembed import TextEmbedding
 
@@ -142,6 +149,7 @@ def _ensure_index() -> dict:
         return _INDEX  # set by index_dense
 
 
+@_weave_op
 def search(query: str, k: int = 10) -> list[dict]:
     """Dense cosine retrieval via FastEmbed. Returns {case_id, snippet, score}."""
     if not query or not query.strip():
