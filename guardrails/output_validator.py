@@ -16,6 +16,13 @@ from typing import TypedDict
 
 from generation.citations import extract_citations
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 
 class Verdict(TypedDict):
     passed: bool
@@ -34,6 +41,7 @@ FORBIDDEN_ACTION = re.compile(
 )
 
 
+@_weave_op
 def validate_output(
     answer: str,
     *,

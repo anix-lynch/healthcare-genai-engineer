@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_pipeline
 from app.schemas import AskRequest, AskResponse, Citation
+from generation.citations import extract_citations
 from generation.generate import generate_answer
 from guardrails import (
     validate_input, InputGuardError,
@@ -52,6 +53,94 @@ def _current_trace_id() -> str | None:
     return getattr(call, "id", None)
 
 
+def _identity_op(fn):
+    return fn
+
+
+_stage_op = getattr(weave, "op", _identity_op) if weave is not None else _identity_op
+
+
+@_stage_op
+def input_guard(query: str) -> str:
+    """Stage 1 — sanitize and reject clearly malicious input."""
+    return validate_input(query)
+
+
+@_stage_op
+def pii_redact(query: str) -> tuple[str, bool, str, list[str]]:
+    """Stage 2 — redact soft PII hits while preserving retrievable text."""
+    warnings: list[str] = []
+    guard_triggered = False
+    guard_type = "none"
+    cleaned, pii_counts = mask_pii(query)
+    if pii_counts:
+        warnings.append(f"pii redacted from query: {dict(pii_counts)}")
+        guard_triggered = True
+        guard_type = "pii"
+    return cleaned, guard_triggered, guard_type, warnings
+
+
+@_stage_op
+def classify_rule(query: str) -> tuple[int, list[str]]:
+    """Stage 4 — deterministic safety-floor triage vote."""
+    return rule_based_esi(query)
+
+
+@_stage_op
+def classify_rag(hits: list[dict]) -> tuple[int | None, float, dict[int, int]]:
+    """Stage 5 — retrieval-driven triage vote."""
+    return rag_knn_esi(hits)
+
+
+@_stage_op
+def generate_grounded_answer(query: str, hits: list[dict]) -> dict:
+    """Stage 6 — grounded answer generation."""
+    return generate_answer(query, hits)
+
+
+@_stage_op
+def output_guard_and_fuse(
+    *,
+    answer: str,
+    hits: list[dict],
+    rule_tier: int,
+    red_flags: list[str],
+    rag_tier: int | None,
+    rag_conf: float,
+    rag_votes: dict[int, int],
+) -> tuple[list[str], list[Citation], int | None, float | None, bool, list[str], dict[int, int]]:
+    """Stage 7 — validate the answer, build citations, and fuse triage votes."""
+    warnings: list[str] = []
+    valid_ids = {h.get("case_id") for h in hits if h.get("case_id")}
+    verdict = validate_output(answer, valid_source_ids=valid_ids)
+    warnings.extend(verdict["warnings"])
+    cited_ids, _ = extract_citations(answer, valid_ids)
+    citations = [
+        Citation(
+            source_id=h["case_id"],
+            snippet=(h.get("snippet") or "")[:200],
+            similarity=min(1.0, max(0.0, float(h.get("score", 0)) / 12.0)),
+        )
+        for h in hits
+        if h.get("case_id") in set(cited_ids) or not cited_ids
+    ]
+    esi_final, esi_conf, disagreement = fuse_esi(rule_tier, red_flags, rag_tier, rag_conf)
+    if disagreement:
+        warnings.append(
+            f"esi_disagreement: rule predicted {rule_tier}, RAG-KNN predicted {rag_tier}. "
+            "Rule wins by safety policy; flag for human review."
+        )
+    return (
+        warnings,
+        citations,
+        esi_final,
+        esi_conf,
+        disagreement,
+        verdict["hard_failures"],
+        rag_votes,
+    )
+
+
 def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
     """Core pipeline body. Wrapped as a Weave op below so the trace tree
     has a single root call.
@@ -66,7 +155,7 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
     # 1) Input guardrails
     t_guard = time.perf_counter()
     try:
-        clean_query = validate_input(req.query)
+        clean_query = input_guard(req.query)
     except InputGuardError as e:
         msg = str(e)
         if "injection" in msg.lower():
@@ -83,14 +172,8 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
         raise HTTPException(status_code=400, detail=detail)
 
     # 2) PII detection on query (redact for logs, retrieve on cleaned text)
-    guard_triggered = False
-    guard_type_200 = "none"
-    cleaned, pii_counts = mask_pii(clean_query)
-    if pii_counts:
-        warnings.append(f"pii redacted from query: {dict(pii_counts)}")
-        clean_query = cleaned
-        guard_triggered = True
-        guard_type_200 = "pii"
+    clean_query, guard_triggered, guard_type_200, pii_warnings = pii_redact(clean_query)
+    warnings.extend(pii_warnings)
     guard_ms = int((time.perf_counter() - t_guard) * 1000)
 
     # 3) Retrieve
@@ -98,41 +181,34 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
     hits = pipeline.retrieve(clean_query, k=req.k, method=req.method)
     retrieve_ms = int((time.perf_counter() - t_retrieve) * 1000)
 
-    # 4) Generate
+    # 4) Rule-based classification
+    rule_tier, red_flags = classify_rule(clean_query)
+
+    # 5) Retrieval-based classification
+    rag_tier, rag_conf, rag_votes = classify_rag(hits)
+
+    # 6) Generate
     t_generate = time.perf_counter()
-    gen = generate_answer(clean_query, hits)
+    gen = generate_grounded_answer(clean_query, hits)
     generate_ms = int((time.perf_counter() - t_generate) * 1000)
     warnings.extend(gen.get("warnings", []))
 
-    # 5) Output guardrails
-    valid_ids = {h.get("case_id") for h in hits if h.get("case_id")}
-    verdict = validate_output(gen["answer"], valid_source_ids=valid_ids)
-    warnings.extend(verdict["warnings"])
-    if verdict["hard_failures"]:
-        detail = {"error": "output_guard", "hard_failures": verdict["hard_failures"]}
+    # 7) Output guardrails + fuse
+    final_warnings, citations, esi_final, esi_conf, disagreement, hard_failures, rag_votes = output_guard_and_fuse(
+        answer=gen["answer"],
+        hits=hits,
+        rule_tier=rule_tier,
+        red_flags=red_flags,
+        rag_tier=rag_tier,
+        rag_conf=rag_conf,
+        rag_votes=rag_votes,
+    )
+    warnings.extend(final_warnings)
+    if hard_failures:
+        detail = {"error": "output_guard", "hard_failures": hard_failures}
         if trace_id:
             detail["trace_call_id"] = trace_id
         raise HTTPException(status_code=422, detail=detail)
-
-    citations = [
-        Citation(
-            source_id=h["case_id"],
-            snippet=(h.get("snippet") or "")[:200],
-            similarity=min(1.0, max(0.0, float(h.get("score", 0)) / 12.0)),
-        )
-        for h in hits
-        if h.get("case_id") in set(gen["citations"]) or not gen["citations"]
-    ]
-
-    # 6) ESI classification — rule + RAG-KNN + fuse
-    rule_tier, red_flags = rule_based_esi(clean_query)
-    rag_tier, rag_conf, rag_votes = rag_knn_esi(hits)
-    esi_final, esi_conf, disagreement = fuse_esi(rule_tier, red_flags, rag_tier, rag_conf)
-    if disagreement:
-        warnings.append(
-            f"esi_disagreement: rule predicted {rule_tier}, RAG-KNN predicted {rag_tier}. "
-            "Rule wins by safety policy; flag for human review."
-        )
 
     return AskResponse(
         query=req.query,

@@ -38,6 +38,13 @@ from __future__ import annotations
 from collections import Counter
 from typing import Iterable
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 
 # Default ESI when no signal fires. ESI 4 = less-urgent, not 3, because
 # the rule layer is the SAFETY FLOOR — false-negative escalation costs
@@ -45,6 +52,7 @@ from typing import Iterable
 DEFAULT_TIER = 4
 
 
+@_weave_op
 def rule_based_esi(query: str) -> tuple[int, list[str]]:
     """Text-only ESI rule classifier. Returns (tier, red_flags).
 
@@ -133,6 +141,7 @@ def _esi_from_snippet(snippet: str) -> int | None:
     return None
 
 
+@_weave_op
 def rag_knn_esi(hits: Iterable[dict]) -> tuple[int | None, float, dict[int, int]]:
     """KNN-vote ESI from retrieved cases.
 
@@ -179,6 +188,7 @@ _SAFETY_FLOOR_PREFIXES = (
 )
 
 
+@_weave_op
 def fuse_esi(
     rule_tier: int,
     rule_flags: list[str],

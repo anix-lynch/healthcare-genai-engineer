@@ -15,6 +15,13 @@ NOT covered (intentional honest scope):
 from __future__ import annotations
 import re
 
+try:
+    import weave
+    _weave_op = weave.op
+except Exception:
+    def _weave_op(fn):  # type: ignore[misc]
+        return fn
+
 PII_PATTERNS = {
     "ssn":          re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "phone":        re.compile(r"\b\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
@@ -25,6 +32,7 @@ PII_PATTERNS = {
 }
 
 
+@_weave_op
 def find_pii(text: str) -> dict[str, list[str]]:
     """Return {pattern_name: [matched_strings]} for everything found.
 
@@ -41,6 +49,7 @@ def find_pii(text: str) -> dict[str, list[str]]:
     return hits
 
 
+@_weave_op
 def mask_pii(text: str, *, mask: str = "[REDACTED]") -> tuple[str, dict[str, int]]:
     """Replace matched PII spans with the mask token.
 

@@ -15,12 +15,18 @@ see:
 
 ## CCTV map for the healthcare workflow
 
-- Front door camera: `input_guard`
-- Triage room camera: `retrieve`
-- Clinical review room camera: `classify_rule` + `classify_rag`
-- Report-writing room camera: `generate`
-- Exit security camera: `output_guard`
-- Shift supervisor: `fuse`
+The current request trace is organized as seven explicit stages:
+
+1. `input_guard`
+2. `pii_redact`
+3. `QueryPipeline.retrieve`
+4. `classify_rule`
+5. `classify_rag`
+6. `generate_grounded_answer`
+7. `output_guard_and_fuse`
+
+These are still one request-time workflow, not seven independent long-running
+agents. The point is stage-level observability, not orchestration hype.
 
 ## What a useful trace should answer
 
