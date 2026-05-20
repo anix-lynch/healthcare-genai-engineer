@@ -158,7 +158,7 @@ _HTML = """<!doctype html>
   <section class="max-w-[1280px] mx-auto px-6">
     <div class="rounded-xl bg-gradient-to-r from-[var(--accent-bg)] to-white border border-[var(--border)] p-4 shadow-sm">
       <div class="flex items-center justify-between mb-2">
-        <h2 class="text-[13px] font-semibold text-[var(--accent)] uppercase tracking-wide">🎯 Pattern 1 · Retrieval (Rachel) · 20 golden queries · live CI gate</h2>
+        <h2 class="text-[13px] font-semibold text-[var(--accent)] uppercase tracking-wide">🎯 Pattern 1 · Retrieval (Rachel) · hybrid (RRF fused) · 20 golden queries · live CI gate</h2>
         <span class="text-[10px] text-[var(--ink-3)]">scanned __SCANNED__ · k=__KQ__</span>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -352,7 +352,7 @@ _HTML = """<!doctype html>
         <p class="font-semibold text-[var(--ink-1)]">📝 Generate (Mad Lib)</p>
         <p class="text-[var(--ink-2)] mt-0.5">Grounded rationale · 100% citation valid · ✅ here</p>
       </div>
-      <a href="https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/" target="_blank" class="rounded-lg border border-[var(--border)] p-2.5 hover:border-[var(--accent)] transition">
+      <a href="https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/docs" target="_blank" class="rounded-lg border border-[var(--border)] p-2.5 hover:border-[var(--accent)] transition">
         <p class="font-semibold text-[var(--ink-1)]">🚨 Anomaly · vitals outlier</p>
         <p class="text-[var(--ink-2)] mt-0.5">SIRS-shape sepsis · pediatric safety · → in FDE repo</p>
       </a>
@@ -379,7 +379,7 @@ _HTML = """<!doctype html>
   <section class="max-w-[1280px] mx-auto px-6 py-4 mt-2 border-t border-[var(--border)]">
     <h3 class="text-[11px] font-semibold text-[var(--ink-3)] uppercase tracking-wide mb-3">🔗 Same story · other lenses (Anix's healthcare AI trifecta)</h3>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <a href="https://healthcare-ai-data-2ihyeqmb6q-uw.a.run.app/" target="_blank" class="rounded-lg border border-[var(--border)] p-3 hover:border-[var(--accent)] transition">
+      <a href="https://healthcare-ai-data-2ihyeqmb6q-uw.a.run.app/docs" target="_blank" class="rounded-lg border border-[var(--border)] p-3 hover:border-[var(--accent)] transition">
         <p class="text-[11px] text-[var(--ink-3)] mb-1">📊 LAYER 1 · AI DATA ENGINEER</p>
         <p class="text-[13px] font-semibold text-[var(--ink-1)]">healthcare-ai-data-engineer</p>
         <p class="text-[11px] text-[var(--ink-2)] mt-1">dbt medallion · 7-check L1 quality gate · Vertex enrichment · 55K encounters → 40K patients</p>
@@ -389,7 +389,7 @@ _HTML = """<!doctype html>
         <p class="text-[13px] font-semibold text-[var(--ink-1)]">healthcare-genai-engineer</p>
         <p class="text-[11px] text-[var(--ink-2)] mt-1">RAG (BM25 + Dense + RRF) · KNN-as-classifier · grounded citations · CI regression gate</p>
       </div>
-      <a href="https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/v1/ask" target="_blank" class="rounded-lg border border-[var(--border)] p-3 hover:border-[var(--accent)] transition">
+      <a href="https://healthcare-fde-2ihyeqmb6q-uw.a.run.app/docs" target="_blank" class="rounded-lg border border-[var(--border)] p-3 hover:border-[var(--accent)] transition">
         <p class="text-[11px] text-[var(--ink-3)] mb-1">🚑 LAYER 3 · FORWARD DEPLOYED ENGINEER</p>
         <p class="text-[13px] font-semibold text-[var(--ink-1)]">healthcare-forward-deployed-engineer</p>
         <p class="text-[11px] text-[var(--ink-2)] mt-1">Customer-deploy package · runbook P0/P1/P2 · acceptance gate · split-sink HIPAA logging</p>
@@ -563,7 +563,7 @@ _HTML = """<!doctype html>
       const cited = (data.citations || []).map(c => c.source_id);
       let html = ans;
       cited.forEach(id => {
-        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'g');
         html = html.replace(re, `<span class="chip-cite mono text-[11px] px-1.5 py-0.5 rounded">${id}</span>`);
       });
       txt.innerHTML = html;
@@ -582,7 +582,7 @@ _HTML = """<!doctype html>
       const cited = (data.citations || []).map(c => c.source_id);
       let html = ans;
       cited.forEach(id => {
-        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'g');
         html = html.replace(re, `<span class="chip-cite mono text-[11px] px-1.5 py-0.5 rounded">${id}</span>`);
       });
       txt.innerHTML = html;
