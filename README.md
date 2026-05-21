@@ -2,15 +2,21 @@
 
 > **Healthcare RAG service** — FastAPI + BM25/dense hybrid retrieval + custom-proxy eval + PII guardrails + regression gate. One ER-triage workflow, end-to-end.
 
+![Demo](demo.gif)
+
+🔗 **Live:** https://healthcare-genai-2ihyeqmb6q-uw.a.run.app
+
 [![eval-gate](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml/badge.svg)](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml)
 
 ```
 POST /v1/ask
   → input guard (sanitize · injection scan · PII mask)
   → BM25 retrieval over 497-row enriched healthcare corpus
+  → prediction signal (future-risk / LOS / bed pressure)
   → grounded answer (template baseline, LLM path behind USE_LLM flag)
+  → orchestration / override rules
   → output guard (citation valid · forbidden actions · length)
-  → JSON response with cited source_ids + warnings
+  → JSON response with cited source_ids + warnings + prediction signal
 ```
 
 ---
@@ -61,6 +67,7 @@ Output (live, just run it):
 ```
 app/                  FastAPI: main.py + schemas.py + dependencies.py
                        + routers/ask.py · routers/health.py
+                       + prediction.py
 retrieval/            BM25 (from-scratch, Okapi k1=1.5/b=0.75)
                        + dense (sentence-transformers MiniLM)
                        + RRF hybrid fusion (k=60, Cormack & Buettcher)
@@ -82,6 +89,40 @@ demo/                 sample_queries.md (5 curl recipes)
 tests/                3 pytest cases over FastAPI TestClient
 Dockerfile · docker-compose.yml · Makefile
 ```
+
+---
+
+## Prediction Signal Node
+
+This repo now includes a lightweight prediction layer inside the existing
+workflow.
+
+- **APIs / facts** answer: what is true right now?
+- **Prediction** answers: what is likely to happen next?
+- **The agent / orchestrator** answers: what should we do?
+- **Safety rules** decide when prediction can and cannot influence the final
+  recommendation.
+
+```text
+Facts/API
+    ↓
+Triage Classification
+    ↓
+Prediction Signal
+    ↓
+Orchestration / Override Rules
+    ↓
+Human-facing Recommendation
+```
+
+Important rule:
+
+- **Prediction does not override acute safety.**
+- A `NOW` case stays `NOW`.
+- Prediction is used for monitoring, LOS planning, bed planning, and staffing
+  context.
+- If prediction conflicts with current facts or acute triage, the conflict is
+  surfaced explicitly in the explanation.
 
 ---
 
