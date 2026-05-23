@@ -7,6 +7,7 @@
 🔗 **Live:** https://healthcare-genai-2ihyeqmb6q-uw.a.run.app
 
 🔎 **Architecture:** [docs/architecture.md](docs/architecture.md)
+🧭 **Remaining senior gaps:** [docs/senior-gaps.md](docs/senior-gaps.md)
 
 [![eval-gate](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml/badge.svg)](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml)
 
