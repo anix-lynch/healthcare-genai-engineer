@@ -21,7 +21,8 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_pipeline
-from app.schemas import AskRequest, AskResponse, Citation
+from app.prediction import get_prediction_signal
+from app.schemas import AskRequest, AskResponse, Citation, PredictionSignal, TriageLevel
 from generation.citations import extract_citations
 from generation.generate import generate_answer
 from guardrails import (
@@ -141,6 +142,110 @@ def output_guard_and_fuse(
     )
 
 
+def _triage_level_from_esi(esi: int | None) -> TriageLevel | None:
+    if esi is None:
+        return None
+    if esi <= 2:
+        return "NOW"
+    if esi == 3:
+        return "SOON"
+    return "WAIT"
+
+
+@_stage_op
+def prediction_signal_node(
+    query: str,
+    hits: list[dict],
+    *,
+    er_state,
+    triage_level: TriageLevel | None,
+) -> PredictionSignal:
+    """Stage 6 — future-risk signal for planning and monitoring."""
+    return get_prediction_signal(
+        {"query": query, "hits": hits, "triage_level": triage_level},
+        er_state=er_state,
+    )
+
+
+@_stage_op
+def orchestration_override_rules(
+    *,
+    triage_level: TriageLevel | None,
+    prediction_signal: PredictionSignal,
+    red_flags: list[str],
+) -> tuple[list[str], bool, str | None, list[str], str]:
+    """Decide how prediction can influence operations without breaking safety."""
+    decision_basis: list[str] = []
+    operational_recommendations = list(prediction_signal.recommended_operational_actions)
+    override_applied = False
+    override_reason: str | None = None
+
+    if red_flags:
+        decision_basis.append(f"Safety rule triggers: {', '.join(red_flags[:3])}")
+    if triage_level:
+        decision_basis.append(f"Acute triage level: {triage_level}")
+    decision_basis.append(
+        f"Prediction signal: risk={prediction_signal.risk_level}, "
+        f"deterioration={prediction_signal.deterioration_risk}, "
+        f"bed_pressure={prediction_signal.bed_pressure_risk}"
+    )
+
+    if triage_level == "NOW":
+        operational_recommendations = [
+            "Immediate clinician review",
+            "Notify charge nurse",
+            *operational_recommendations,
+        ]
+        if prediction_signal.deterioration_risk != "high":
+            override_applied = True
+            override_reason = "Acute safety rule: triage NOW cannot be downgraded by prediction."
+            decision_basis.append("Conflict surfaced: prediction appears lower-risk than acute triage, but safety preserves NOW.")
+        explanation = (
+            "The patient requires immediate attention based on current acute signals. "
+            "The prediction signal is used only for operational planning and does not reduce urgency."
+        )
+    elif triage_level == "SOON":
+        explanation = (
+            "The patient should be seen soon based on current acute signals. "
+            "Prediction is used to decide whether closer monitoring or operational escalation is needed."
+        )
+        if prediction_signal.deterioration_risk == "high":
+            override_applied = True
+            override_reason = "Prediction signal increased monitoring priority within the SOON pathway."
+            operational_recommendations = [
+                "Urgent monitoring / more frequent recheck",
+                "Flag nurse review for possible escalation",
+                *operational_recommendations,
+            ]
+            decision_basis.append("SOON triage kept, but high future-risk signal increased monitoring intensity.")
+    else:  # WAIT or unknown
+        explanation = (
+            "The current acute triage signal does not indicate immediate danger. "
+            "Prediction is used to decide whether the patient should be monitored or rechecked more closely."
+        )
+        if prediction_signal.risk_level == "high" or prediction_signal.deterioration_risk == "high":
+            override_applied = True
+            override_reason = "Prediction signal flagged future risk; maintain WAIT triage but add recheck and nurse review."
+            operational_recommendations = [
+                "Flag nurse review",
+                "Schedule recheck / repeat vitals",
+                *operational_recommendations,
+            ]
+            decision_basis.append("Prediction conflicts with a low-acuity acute signal, so monitoring is added without forcing NOW.")
+
+    if prediction_signal.predicted_los_hours and prediction_signal.predicted_los_hours >= 36:
+        decision_basis.append(f"Predicted LOS ~{prediction_signal.predicted_los_hours:g}h adds bed-planning context.")
+        operational_recommendations.append("Flag bed management because predicted LOS is high")
+
+    return (
+        list(dict.fromkeys(decision_basis)),
+        override_applied,
+        override_reason,
+        list(dict.fromkeys(operational_recommendations)),
+        explanation,
+    )
+
+
 def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
     """Core pipeline body. Wrapped as a Weave op below so the trace tree
     has a single root call.
@@ -178,7 +283,7 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
 
     # 3) Retrieve
     t_retrieve = time.perf_counter()
-    hits = pipeline.retrieve(clean_query, k=req.k, method=req.method)
+    hits, method_used = pipeline.retrieve_with_method(clean_query, k=req.k, method=req.method)
     retrieve_ms = int((time.perf_counter() - t_retrieve) * 1000)
 
     # 4) Rule-based classification
@@ -187,13 +292,23 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
     # 5) Retrieval-based classification
     rag_tier, rag_conf, rag_votes = classify_rag(hits)
 
-    # 6) Generate
+    triage_level = _triage_level_from_esi(rule_tier if red_flags else rag_tier if rag_tier is not None else rule_tier)
+
+    # 6) Prediction signal
+    prediction_signal = prediction_signal_node(
+        clean_query,
+        hits,
+        er_state=req.er_state,
+        triage_level=triage_level,
+    )
+
+    # 7) Generate
     t_generate = time.perf_counter()
     gen = generate_grounded_answer(clean_query, hits)
     generate_ms = int((time.perf_counter() - t_generate) * 1000)
     warnings.extend(gen.get("warnings", []))
 
-    # 7) Output guardrails + fuse
+    # 8) Output guardrails + fuse
     final_warnings, citations, esi_final, esi_conf, disagreement, hard_failures, rag_votes = output_guard_and_fuse(
         answer=gen["answer"],
         hits=hits,
@@ -210,11 +325,42 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
             detail["trace_call_id"] = trace_id
         raise HTTPException(status_code=422, detail=detail)
 
+    triage_level = _triage_level_from_esi(esi_final)
+    decision_basis, override_applied, override_reason, operational_recommendations, explanation_for_human = orchestration_override_rules(
+        triage_level=triage_level,
+        prediction_signal=prediction_signal,
+        red_flags=red_flags,
+    )
+
+    _orchestration_state = {
+        "case": {"query": req.query, "er_state": req.er_state.model_dump() if req.er_state else None},
+        "facts": {"method_used": method_used, "retrieved_count": len(hits)},
+        "triage_classification": {
+            "rule": rule_tier,
+            "rag": rag_tier,
+            "final": esi_final,
+            "triage_level": triage_level,
+        },
+        "prediction_signal": prediction_signal.model_dump(),
+        "final_decision": {
+            "override_applied": override_applied,
+            "override_reason": override_reason,
+            "operational_recommendations": operational_recommendations,
+        },
+        "explanation": explanation_for_human,
+    }
+    if disagreement:
+        warnings.append(
+            "prediction/triage review note: future-risk signal is visible in the explanation and did not hide the acute triage priority."
+        )
+    if override_applied and override_reason:
+        warnings.append(f"override_applied: {override_reason}")
+
     return AskResponse(
         query=req.query,
         answer=gen["answer"],
         citations=citations[: req.k],
-        method_used=req.method,
+        method_used=method_used,
         retrieved_count=len(hits),
         latency_ms=int((time.time() - t0) * 1000),
         warnings=warnings,
@@ -225,6 +371,13 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
         esi_disagreement=disagreement,
         esi_red_flags=red_flags,
         esi_votes=rag_votes,
+        triage_level=triage_level,
+        prediction_signal=prediction_signal,
+        decision_basis=decision_basis,
+        override_applied=override_applied,
+        override_reason=override_reason,
+        operational_recommendations=operational_recommendations,
+        explanation_for_human=explanation_for_human,
         guard_ms=guard_ms,
         retrieve_ms=retrieve_ms,
         generate_ms=generate_ms,

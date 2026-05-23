@@ -2,6 +2,7 @@
 from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 from app.main import app
 
@@ -32,8 +33,24 @@ def test_ask_returns_grounded_answer(client):
     assert isinstance(data["citations"], list)
     assert data["method_used"] == "bm25"
     assert data["latency_ms"] >= 0
+    assert data["triage_level"] in {"NOW", "SOON", "WAIT"}
+    assert "prediction_signal" in data
+    assert "decision_basis" in data
+    assert "operational_recommendations" in data
+    assert "explanation_for_human" in data
 
 
 def test_ask_empty_query_rejected(client):
     r = client.post("/v1/ask", json={"query": "", "k": 5, "method": "bm25"})
     assert r.status_code == 422  # pydantic validation
+
+
+def test_ask_reports_bm25_when_dense_falls_back(client):
+    with patch("retrieval.query_pipeline._dense.search", side_effect=RuntimeError("encoder missing")):
+        r = client.post(
+            "/v1/ask",
+            json={"query": "62yo male chest pain hypertension", "k": 5, "method": "dense"},
+        )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["method_used"] == "bm25"

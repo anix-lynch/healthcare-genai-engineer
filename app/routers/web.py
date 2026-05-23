@@ -100,7 +100,7 @@ _HTML = """<!doctype html>
         <h1 class="font-semibold text-[15px] text-[var(--ink-1)]">healthcare-genai-engineer</h1>
         <p class="text-[12px] text-[var(--ink-3)]">RAG primitives · 17-metric eval · regression-gated in CI</p>
       </div>
-      <div id="methodToggle" class="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-[11px]">
+      <div data-method-toggle class="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-[11px]">
         <button class="toggle-btn active px-2.5 py-1" data-method="bm25" title="Okapi BM25 keyword retrieval">BM25</button>
         <button class="toggle-btn px-2.5 py-1 border-l border-[var(--border)]" data-method="dense" title="FastEmbed BGE-small dense semantic retrieval (ONNX 384-dim)">Dense</button>
         <button class="toggle-btn px-2.5 py-1 border-l border-[var(--border)]" data-method="hybrid" title="BM25 + Dense fused via RRF k=60">Hybrid</button>
@@ -233,7 +233,7 @@ _HTML = """<!doctype html>
     <section class="panel p-5">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2"><span>🔀</span><h2 class="font-semibold text-[14px]">RETRIEVAL</h2></div>
-        <div id="methodToggle" class="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-[12px]">
+        <div data-method-toggle class="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-[12px]">
           <button class="toggle-btn active px-3 py-1.5" data-method="bm25" title="Okapi BM25 keyword retrieval">BM25</button>
           <button class="toggle-btn px-3 py-1.5 border-l border-[var(--border)]" data-method="dense" title="FastEmbed BGE-small dense semantic retrieval (ONNX, 384-dim)">Dense</button>
           <button class="toggle-btn px-3 py-1.5 border-l border-[var(--border)]" data-method="hybrid" title="BM25 + Dense fused via Reciprocal Rank Fusion (k=60)">Hybrid (RRF)</button>
@@ -444,10 +444,15 @@ _HTML = """<!doctype html>
     }));
 
     // method toggle — swap eval panel + re-fetch if there's a query
-    document.querySelectorAll('#methodToggle .toggle-btn').forEach(b => b.addEventListener('click', () => {
-      document.querySelectorAll('#methodToggle .toggle-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
+    function syncMethodButtons(method) {
+      document.querySelectorAll('[data-method-toggle] .toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.method === method);
+      });
+    }
+
+    document.querySelectorAll('[data-method-toggle] .toggle-btn').forEach(b => b.addEventListener('click', () => {
       activeMethod = b.dataset.method;
+      syncMethodButtons(activeMethod);
       renderEvalFor(activeMethod);
       if ($q.value.trim()) ask();
     }));
@@ -490,7 +495,7 @@ _HTML = """<!doctype html>
         if (p.startsWith('CC:'))      out.cc      = p.slice(3).trim();
         else if (p.startsWith('vitals:')) out.vitals = p.slice(7).trim();
         else if (p.startsWith('ESI ')) {
-          const m = p.match(/ESI (\d)/); if (m) out.esi = parseInt(m[1], 10);
+          const m = p.match(/ESI (\\d)/); if (m) out.esi = parseInt(m[1], 10);
         }
         else if (p.startsWith('flags:')) out.flags = p.slice(6).trim();
       }
@@ -563,7 +568,7 @@ _HTML = """<!doctype html>
       const cited = (data.citations || []).map(c => c.source_id);
       let html = ans;
       cited.forEach(id => {
-        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'g');
+        const re = new RegExp(id.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'), 'g');
         html = html.replace(re, `<span class="chip-cite mono text-[11px] px-1.5 py-0.5 rounded">${id}</span>`);
       });
       txt.innerHTML = html;
@@ -582,7 +587,7 @@ _HTML = """<!doctype html>
       const cited = (data.citations || []).map(c => c.source_id);
       let html = ans;
       cited.forEach(id => {
-        const re = new RegExp(id.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'g');
+        const re = new RegExp(id.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'), 'g');
         html = html.replace(re, `<span class="chip-cite mono text-[11px] px-1.5 py-0.5 rounded">${id}</span>`);
       });
       txt.innerHTML = html;

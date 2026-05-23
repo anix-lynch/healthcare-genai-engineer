@@ -8,6 +8,28 @@ from typing import Literal
 
 
 Method = Literal["bm25", "dense", "hybrid"]
+RiskLevel = Literal["low", "medium", "high"]
+TriageLevel = Literal["NOW", "SOON", "WAIT"]
+
+
+class ERState(BaseModel):
+    """Optional live ER operational context."""
+    model_config = ConfigDict(extra="forbid")
+    queue_length: int | None = Field(None, ge=0)
+    available_beds: int | None = Field(None, ge=0)
+    occupancy_pct: float | None = Field(None, ge=0.0, le=100.0)
+    avg_wait_minutes: int | None = Field(None, ge=0)
+
+
+class PredictionSignal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    risk_level: RiskLevel
+    predicted_los_hours: float | None = Field(None, ge=0.0)
+    deterioration_risk: RiskLevel
+    bed_pressure_risk: RiskLevel
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    reasons: list[str] = Field(default_factory=list)
+    recommended_operational_actions: list[str] = Field(default_factory=list)
 
 
 class AskRequest(BaseModel):
@@ -15,6 +37,7 @@ class AskRequest(BaseModel):
     query: str = Field(..., min_length=1, description="free-text question to RAG over")
     k: int = Field(5, ge=1, le=50, description="number of hits to retrieve")
     method: Method = Field("bm25", description="retrieval strategy")
+    er_state: ERState | None = Field(None, description="optional live ER operational context")
 
 
 class Citation(BaseModel):
@@ -41,6 +64,13 @@ class AskResponse(BaseModel):
     esi_disagreement: bool = Field(False, description="True iff rule fired AND RAG predicted a different tier")
     esi_red_flags: list[str] = Field(default_factory=list, description="rule-based safety triggers that fired")
     esi_votes: dict[int, int] = Field(default_factory=dict, description="per-tier raw vote count from top-K retrieved cases (e.g. {2:4, 3:1} → '4× ESI 2 · 1× ESI 3')")
+    triage_level: TriageLevel | None = Field(None, description="human-readable urgency bucket derived from fused ESI")
+    prediction_signal: PredictionSignal | None = Field(None, description="future-risk signal used for operational planning")
+    decision_basis: list[str] = Field(default_factory=list, description="ordered list of facts/rules/signals that drove the decision")
+    override_applied: bool = Field(False, description="True iff safety/override logic had to resolve a conflict or add explicit monitoring behavior")
+    override_reason: str | None = Field(None, description="why the override logic fired")
+    operational_recommendations: list[str] = Field(default_factory=list, description="human-readable operational next actions")
+    explanation_for_human: str | None = Field(None, description="plain-English explanation of how triage and prediction were combined")
     # Per-node trace timings (ms). Populated on every request for the live trace panel.
     guard_ms: int = Field(0, ge=0, description="input-guardrail latency ms")
     retrieve_ms: int = Field(0, ge=0, description="retrieval latency ms")

@@ -25,6 +25,35 @@ class QueryPipeline:
     """Lightweight retrieval facade for the /ask endpoint."""
 
     @_weave_op
+    def retrieve_with_method(
+        self,
+        query: str,
+        *,
+        k: int = 5,
+        method: Method = "bm25",
+    ) -> tuple[list[dict], Method]:
+        """Return hits plus the retriever that actually produced them.
+
+        Dense / hybrid may fall back to BM25 on runtime failure. The UI needs
+        the actual method so it doesn't label BM25 results as dense.
+        """
+        if method == "dense":
+            try:
+                hits = _dense.search(query, k=k)
+                if hits:
+                    return hits, "dense"
+            except Exception:
+                pass  # fall through to BM25
+        if method == "hybrid":
+            try:
+                hits = _hybrid_search(query, k=k)
+                if hits:
+                    return hits, "hybrid"
+            except Exception:
+                pass  # fall through to BM25
+        return _bm25_search(query, k=k), "bm25"
+
+    @_weave_op
     def retrieve(
         self,
         query: str,
@@ -39,18 +68,5 @@ class QueryPipeline:
         caller still gets a usable response with method_used reflecting
         what actually ran.
         """
-        if method == "dense":
-            try:
-                hits = _dense.search(query, k=k)
-                if hits:
-                    return hits
-            except Exception:
-                pass  # fall through to BM25
-        if method == "hybrid":
-            try:
-                hits = _hybrid_search(query, k=k)
-                if hits:
-                    return hits
-            except Exception:
-                pass  # fall through to BM25
-        return _bm25_search(query, k=k)
+        hits, _ = self.retrieve_with_method(query, k=k, method=method)
+        return hits
