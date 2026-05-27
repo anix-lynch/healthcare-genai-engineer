@@ -21,6 +21,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_pipeline
+from app.grounding import build_grouped_evidence, enrich_citations
 from app.prediction import get_prediction_signal
 from app.schemas import AskRequest, AskResponse, Citation, PredictionSignal, TriageLevel
 from generation.citations import extract_citations
@@ -356,10 +357,13 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
     if override_applied and override_reason:
         warnings.append(f"override_applied: {override_reason}")
 
+    enriched_citations = enrich_citations(citations[: req.k], hits)
+    grouped = build_grouped_evidence(hits)
+
     return AskResponse(
         query=req.query,
         answer=gen["answer"],
-        citations=citations[: req.k],
+        citations=enriched_citations,
         method_used=method_used,
         retrieved_count=len(hits),
         latency_ms=int((time.time() - t0) * 1000),
@@ -384,6 +388,7 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
         guard_triggered=guard_triggered,
         guard_type=guard_type_200,
         trace_call_id=trace_id,
+        grouped_evidence=grouped,
     )
 
 

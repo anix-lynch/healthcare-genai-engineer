@@ -10,6 +10,7 @@ from typing import Literal
 Method = Literal["bm25", "dense", "hybrid"]
 RiskLevel = Literal["low", "medium", "high"]
 TriageLevel = Literal["NOW", "SOON", "WAIT"]
+SourceType = Literal["doc", "web", "vid", "struct"]
 
 
 class ERState(BaseModel):
@@ -40,10 +41,22 @@ class AskRequest(BaseModel):
     er_state: ERState | None = Field(None, description="optional live ER operational context")
 
 
+class GroundingEvidence(BaseModel):
+    """Normalized evidence item with honest provenance for the /vertex console."""
+    model_config = ConfigDict(extra="forbid")
+    source_type: SourceType
+    source_id: str = Field(..., description="prefixed: doc:L1-000001, struct:L1-000001, web:..., vid:...")
+    snippet: str = Field(..., description="human-readable evidence preview")
+    similarity: float = Field(..., ge=0.0, le=1.0)
+    is_real: bool = Field(..., description="False = honest placeholder, adapter not yet implemented")
+    provenance: str | None = Field(None, description="human-readable source description shown in UI")
+
+
 class Citation(BaseModel):
     source_id: str
     snippet: str = Field(..., description="up to 200-char preview of the cited record")
     similarity: float = Field(..., ge=0, le=1)
+    source_type: SourceType = Field("doc", description="evidence lane; drives source tag in /vertex UI")
 
 
 class AskResponse(BaseModel):
@@ -86,6 +99,13 @@ class AskResponse(BaseModel):
     # Weave call ID for this request — enables deep-link to the trace tree.
     # None when Weave is not initialized (no WANDB_API_KEY) or capture failed.
     trace_call_id: str | None = Field(None, description="Weave call ID for this request's root trace; pair with WEAVE_PROJECT to build a deep link.")
+    # Grouped grounding evidence for the /vertex ER Insight Console.
+    # Keys: "doc", "struct", "web", "vid". Empty list = lane not yet supported.
+    # is_real=False entries are honest placeholders — the UI must not fake grounding.
+    grouped_evidence: dict[str, list[GroundingEvidence]] = Field(
+        default_factory=dict,
+        description="evidence grouped by source_type lane; drives /vertex source provenance panel",
+    )
 
 
 class HealthResponse(BaseModel):
