@@ -107,7 +107,7 @@ _HTML = """<!doctype html>
       </div>
       <span class="inline-flex items-center gap-1.5 text-[12px] text-[var(--ok)] font-medium"><span class="w-2 h-2 rounded-full bg-[var(--ok)]"></span> live</span>
       <a href="/docs" class="text-[13px] text-[var(--ink-2)] hover:text-[var(--accent)]">⚙️ /docs</a>
-      <a href="https://github.com/anix-lynch/healthcare-genai-engineer" target="_blank" class="text-[13px] text-[var(--ink-2)] hover:text-[var(--accent)]">📘 GitHub</a>
+      <a href="https://github.com/anix-lynch/healthcare-genai-engineer/tree/main" target="_blank" rel="noopener" class="text-[13px] text-[var(--ink-2)] hover:text-[var(--accent)] mono">&lt;/&gt; source</a>
       <span class="text-[12px] text-[var(--ok)] font-medium">⭐ CI</span>
     </div>
   </header>
