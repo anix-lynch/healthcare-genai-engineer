@@ -20,3 +20,8 @@ data/dense_index.npz
 
 # Syncthing scratch files — never commit
 **/.syncthing.*.tmp
+*.pdf
+*.xlsx
+Scorecard*
+*resume*
+vertex/
