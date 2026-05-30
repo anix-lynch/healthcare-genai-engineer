@@ -1,5 +1,7 @@
 # healthcare-genai-engineer
 
+> 🟦 **L2 Action** part of the [L1→L3 healthcare AI platform](https://gozeroshot.dev) — Truth → Features → Signals → Actions → Human adoption. This repo = grounded, guardrailed RAG that turns retrieved truth into cited answers.
+
 > **Healthcare RAG service** — FastAPI + BM25/dense hybrid retrieval + custom-proxy eval + PII guardrails + regression gate. One ER-triage workflow, end-to-end.
 
 ![Demo](demo.gif)
