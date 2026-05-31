@@ -247,6 +247,16 @@ _HTML = """<!doctype html>
         <p class="text-[11px] uppercase tracking-wide text-[var(--ink-3)] font-medium mb-1.5">Decision basis</p>
         <ul id="decisionBasisList" class="space-y-1"></ul>
       </div>
+
+      <!-- Agent collaboration -->
+      <div id="agentCollabBlock" class="hidden">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <p class="text-[11px] uppercase tracking-wide text-[var(--ink-3)] font-medium">Agent handoff</p>
+          <span id="agentRuntimeTag" class="text-[10px] mono text-[var(--ink-3)]"></span>
+        </div>
+        <div id="agentCollabSummary" class="text-[12px] text-[var(--ink-2)] mb-2"></div>
+        <div id="agentCollabList" class="space-y-2"></div>
+      </div>
     </section>
 
     <!-- ═══ PANE 3: EVIDENCE ═══ -->
@@ -507,6 +517,43 @@ function renderDecisionBasis(basis) {
   ).join('');
 }
 
+// ── Render bounded multi-agent handoff ────────────────────────────────────
+function renderAgentCollaboration(plan) {
+  const block = document.getElementById('agentCollabBlock');
+  const list = document.getElementById('agentCollabList');
+  if (!plan || !plan.handoffs || !plan.handoffs.length) {
+    block.classList.add('hidden');
+    return;
+  }
+  block.classList.remove('hidden');
+  document.getElementById('agentRuntimeTag').textContent =
+    `${plan.runtime_mode || 'stateless'} · max ${plan.max_graph_steps || plan.handoffs.length} steps`;
+  document.getElementById('agentCollabSummary').textContent =
+    `${plan.summary}. Loop guard: ${plan.loop_guard || 'bounded retries'}.`;
+  list.innerHTML = plan.handoffs.map((h, i) => {
+    const rp = h.retry_policy || {};
+    const retryText = rp.max_attempts ? `${rp.max_attempts} attempt${rp.max_attempts > 1 ? 's' : ''}` : 'bounded';
+    const stopText = (rp.stop_conditions || []).slice(0, 2).join(' · ') || 'stop condition required';
+    const actionText = (h.actions || []).slice(0, 2).map(escHtml).join('<br>');
+    return `
+      <div class="rounded-lg border border-[var(--border)] bg-[var(--canvas)] px-3 py-2">
+        <div class="flex items-start gap-2">
+          <span class="mono text-[10px] text-[var(--ink-3)] mt-0.5">${i + 1}</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[12px] font-semibold text-[var(--ink-1)]">${escHtml(h.label)}</span>
+              <span class="text-[10px] mono px-1.5 py-0.5 rounded bg-white border border-[var(--border)]">${h.executed ? 'executed' : 'planned'}</span>
+              <span class="text-[10px] mono text-[var(--ink-3)]">${escHtml(retryText)}</span>
+            </div>
+            <p class="text-[11px] text-[var(--ink-3)] mt-0.5">${escHtml(h.trigger)}</p>
+            <p class="text-[11px] text-[var(--ink-2)] mt-1 leading-relaxed">${actionText}</p>
+            <p class="text-[10px] text-[var(--ink-3)] mt-1">Stops: ${escHtml(stopText)} · Escalates: ${escHtml(rp.escalation || 'human owner')}</p>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 // ── Escape HTML ────────────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -668,6 +715,7 @@ function renderResponse(d) {
   }
 
   renderDecisionBasis(d.decision_basis);
+  renderAgentCollaboration(d.agent_collaboration);
 
   // ─ Pane 3: Evidence ─
   const redFlags = d.esi_red_flags || [];

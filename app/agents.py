@@ -13,8 +13,49 @@ from app.schemas import (
     AgentHandoff,
     ERState,
     PredictionSignal,
+    RetryPolicy,
     TriageLevel,
 )
+
+
+def _handoff_key(agent_id: str, level: str, signal: PredictionSignal) -> str:
+    return (
+        f"{agent_id}:{level}:risk-{signal.risk_level}:"
+        f"det-{signal.deterioration_risk}:bed-{signal.bed_pressure_risk}"
+    )
+
+
+def _triage_retry_policy(level: str, red_flags: list[str]) -> RetryPolicy:
+    return RetryPolicy(
+        max_attempts=1,
+        backoff_seconds=[],
+        retry_on=[],
+        stop_conditions=[
+            "triage_level_confirmed",
+            "safety_floor_applied" if red_flags or level == "NOW" else "no_red_flags_found",
+        ],
+        escalation="clinician_review_if_NOW_or_red_flags_fire",
+    )
+
+
+def _bed_ops_retry_policy() -> RetryPolicy:
+    return RetryPolicy(
+        max_attempts=2,
+        backoff_seconds=[30, 120],
+        retry_on=["capacity_api_timeout", "stale_er_state"],
+        stop_conditions=["bed_status_confirmed", "retry_budget_exhausted"],
+        escalation="charge_nurse_review",
+    )
+
+
+def _followup_retry_policy() -> RetryPolicy:
+    return RetryPolicy(
+        max_attempts=2,
+        backoff_seconds=[60, 300],
+        retry_on=["handoff_queue_timeout", "patient_message_pending"],
+        stop_conditions=["recheck_scheduled", "nurse_review_requested", "retry_budget_exhausted"],
+        escalation="nurse_review_queue",
+    )
 
 
 def plan_agent_collaboration(
@@ -32,6 +73,7 @@ def plan_agent_collaboration(
     handoffs: list[AgentHandoff] = [
         AgentHandoff(
             agent_id="er_triage",
+            handoff_key=_handoff_key("er_triage", level, prediction_signal),
             label="ER Triage Agent",
             role="Owns acute urgency and safety-floor routing.",
             trigger=f"Fused ESI produced {level}.",
@@ -40,6 +82,7 @@ def plan_agent_collaboration(
                 f"Route case as {level}",
                 "Keep safety-floor override if red flags fire",
             ],
+            retry_policy=_triage_retry_policy(level, red_flags),
         )
     ]
 
@@ -60,6 +103,7 @@ def plan_agent_collaboration(
         handoffs.append(
             AgentHandoff(
                 agent_id="bed_ops",
+                handoff_key=_handoff_key("bed_ops", level, prediction_signal),
                 label="Bed Ops Agent",
                 role="Turns triage and LOS risk into capacity actions.",
                 trigger=(
@@ -72,6 +116,7 @@ def plan_agent_collaboration(
                     f"Disposition: {bed_decision['disposition']}",
                     bed_decision["reason"],
                 ],
+                retry_policy=_bed_ops_retry_policy(),
                 output=bed_decision,
                 executed=True,
             )
@@ -82,6 +127,7 @@ def plan_agent_collaboration(
         handoffs.append(
             AgentHandoff(
                 agent_id="care_followup",
+                handoff_key=_handoff_key("care_followup", level, prediction_signal),
                 label="Care Follow-up Agent",
                 role="Keeps non-NOW patients from disappearing after the answer.",
                 trigger=(
@@ -93,6 +139,7 @@ def plan_agent_collaboration(
                     "Give patient-facing follow-up instructions for staff review",
                     "Escalate back to ER Triage if risk worsens",
                 ],
+                retry_policy=_followup_retry_policy(),
             )
         )
 
@@ -100,13 +147,23 @@ def plan_agent_collaboration(
         handoffs.append(
             AgentHandoff(
                 agent_id="care_followup",
+                handoff_key=_handoff_key("care_followup", level, prediction_signal),
                 label="Care Follow-up Agent",
                 role="Default second node so every case has an action handoff.",
                 trigger="No downstream risk trigger fired, but the user still needs a next-step owner.",
                 receives=[*receives_common, "triage_level"],
                 actions=operational_recommendations[:2] or ["Document answer and monitor for changed symptoms"],
+                retry_policy=_followup_retry_policy(),
             )
         )
+
+    # Contract guard: a collaboration plan is a bounded graph, not a free-running
+    # swarm. If a future edit creates duplicate nodes, fail before serving a loop.
+    keys = [h.handoff_key for h in handoffs]
+    if len(keys) != len(set(keys)):
+        raise ValueError("duplicate handoff_key in agent collaboration plan")
+    if len(handoffs) > 3:
+        raise ValueError("agent collaboration plan exceeds max_graph_steps=3")
 
     summary = " -> ".join(h.label for h in handoffs)
     return AgentCollaboration(

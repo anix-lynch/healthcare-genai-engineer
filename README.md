@@ -174,6 +174,29 @@ Important rule:
 
 ---
 
+## Multi-agent Handoff Contract
+
+This is not a free-running agent swarm. `/v1/ask` returns a bounded action graph
+that an agent runtime can execute safely:
+
+```text
+ER Triage Agent
+  -> Bed Ops Agent        when NOW, bed pressure, or long predicted LOS needs capacity action
+  -> Care Follow-up Agent when SOON/WAIT or future-risk monitoring needs an owner
+```
+
+Each handoff carries:
+
+- `handoff_key` for idempotency and loop prevention
+- `retry_policy.max_attempts` capped at 1-2 attempts
+- `stop_conditions` so the agent knows when to stop
+- `escalation` so stuck work goes to a human owner instead of looping
+- `runtime_mode=cloud_run_24_7_stateless` for 24/7-ready API execution
+
+The graph is capped at 3 nodes: triage first, then one or two action agents.
+
+---
+
 ## Eval numbers (committed at `outputs/eval_summary.json`)
 
 ```

@@ -12,6 +12,17 @@ RiskLevel = Literal["low", "medium", "high"]
 TriageLevel = Literal["NOW", "SOON", "WAIT"]
 SourceType = Literal["doc", "web", "vid", "struct"]
 AgentId = Literal["er_triage", "bed_ops", "care_followup"]
+RuntimeMode = Literal["cloud_run_24_7_stateless"]
+
+
+class RetryPolicy(BaseModel):
+    """Bounded retry contract for an action-agent handoff."""
+    model_config = ConfigDict(extra="forbid")
+    max_attempts: int = Field(..., ge=1, le=3)
+    backoff_seconds: list[int] = Field(default_factory=list)
+    retry_on: list[str] = Field(default_factory=list)
+    stop_conditions: list[str] = Field(default_factory=list)
+    escalation: str
 
 
 class ERState(BaseModel):
@@ -38,11 +49,13 @@ class AgentHandoff(BaseModel):
     """One action-agent node in the post-triage collaboration graph."""
     model_config = ConfigDict(extra="forbid")
     agent_id: AgentId
+    handoff_key: str = Field(..., description="deterministic idempotency key; prevents duplicate self-requeue loops")
     label: str
     role: str
     trigger: str
     receives: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
+    retry_policy: RetryPolicy
     # Populated only for nodes that actually EXECUTE (e.g. Bed Ops computes a
     # disposition from live ER state). None = a routing/descriptive node.
     output: dict[str, Any] | None = None
@@ -55,6 +68,10 @@ class AgentCollaboration(BaseModel):
     primary_agent: AgentId
     handoffs: list[AgentHandoff] = Field(default_factory=list)
     summary: str
+    runtime_mode: RuntimeMode = "cloud_run_24_7_stateless"
+    loop_guard: str = Field("no_self_requeue_duplicate_keys_or_unbounded_retries", description="how the graph avoids wall loops")
+    max_graph_steps: int = Field(3, ge=1, le=5)
+    dead_end_policy: str = "escalate_to_human_owner_after_retry_budget"
 
 
 class AskRequest(BaseModel):

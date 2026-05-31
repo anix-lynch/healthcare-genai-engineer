@@ -33,6 +33,8 @@ def test_now_routes_to_triage_and_bed_ops():
     assert plan.primary_agent == "er_triage"
     assert [h.agent_id for h in plan.handoffs][:2] == ["er_triage", "bed_ops"]
     assert "Bed Ops Agent" in plan.summary
+    assert plan.runtime_mode == "cloud_run_24_7_stateless"
+    assert plan.max_graph_steps == 3
 
 
 def test_wait_high_future_risk_routes_to_followup():
@@ -46,6 +48,8 @@ def test_wait_high_future_risk_routes_to_followup():
     assert {"er_triage", "bed_ops", "care_followup"}.issubset(ids)
     followup = next(h for h in plan.handoffs if h.agent_id == "care_followup")
     assert any("recheck" in action.lower() for action in followup.actions)
+    assert "recheck_scheduled" in followup.retry_policy.stop_conditions
+    assert followup.retry_policy.max_attempts == 2
 
 
 def test_every_plan_has_at_least_two_nodes():
@@ -56,6 +60,45 @@ def test_every_plan_has_at_least_two_nodes():
         operational_recommendations=[],
     )
     assert len(plan.handoffs) >= 2
+
+
+def test_handoffs_have_bounded_retry_and_stop_conditions():
+    plan = plan_agent_collaboration(
+        triage_level="NOW",
+        prediction_signal=_signal(risk="high", los=48, bed_pressure="high"),
+        red_flags=["resuscitation_keyword:stroke"],
+        operational_recommendations=[],
+    )
+    assert len(plan.handoffs) <= plan.max_graph_steps
+    for handoff in plan.handoffs:
+        assert 1 <= handoff.retry_policy.max_attempts <= 2
+        assert handoff.retry_policy.stop_conditions
+        assert handoff.retry_policy.escalation
+
+
+def test_handoff_keys_are_unique_loop_guards():
+    plan = plan_agent_collaboration(
+        triage_level="WAIT",
+        prediction_signal=_signal(risk="high", los=48, deterioration="high", bed_pressure="high"),
+        red_flags=[],
+        operational_recommendations=[],
+    )
+    keys = [h.handoff_key for h in plan.handoffs]
+    assert len(keys) == len(set(keys))
+    assert "no_self_requeue" in plan.loop_guard
+
+
+def test_now_triage_does_not_retry_into_wall_loop():
+    plan = plan_agent_collaboration(
+        triage_level="NOW",
+        prediction_signal=_signal(risk="high", los=12),
+        red_flags=["critical_symptom"],
+        operational_recommendations=[],
+    )
+    triage = next(h for h in plan.handoffs if h.agent_id == "er_triage")
+    assert triage.retry_policy.max_attempts == 1
+    assert triage.retry_policy.retry_on == []
+    assert "clinician" in triage.retry_policy.escalation
 
 
 # ── Bed Ops EXECUTES — output changes with inputs (real agent, not a label) ──
