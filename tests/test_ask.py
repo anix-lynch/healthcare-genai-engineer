@@ -38,6 +38,8 @@ def test_ask_returns_grounded_answer(client):
     assert "decision_basis" in data
     assert "operational_recommendations" in data
     assert "explanation_for_human" in data
+    assert data["agent_collaboration"]["primary_agent"] == "er_triage"
+    assert len(data["agent_collaboration"]["handoffs"]) >= 2
 
 
 def test_ask_empty_query_rejected(client):

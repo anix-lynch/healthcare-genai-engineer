@@ -20,6 +20,7 @@ from __future__ import annotations
 import time
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.agents import plan_agent_collaboration
 from app.dependencies import get_pipeline
 from app.grounding import build_grouped_evidence, enrich_citations
 from app.prediction import get_prediction_signal
@@ -332,6 +333,13 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
         prediction_signal=prediction_signal,
         red_flags=red_flags,
     )
+    agent_collaboration = plan_agent_collaboration(
+        triage_level=triage_level,
+        prediction_signal=prediction_signal,
+        red_flags=red_flags,
+        operational_recommendations=operational_recommendations,
+        er_state=req.er_state,
+    )
 
     _orchestration_state = {
         "case": {"query": req.query, "er_state": req.er_state.model_dump() if req.er_state else None},
@@ -347,6 +355,7 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
             "override_applied": override_applied,
             "override_reason": override_reason,
             "operational_recommendations": operational_recommendations,
+            "agent_collaboration": agent_collaboration.model_dump(),
         },
         "explanation": explanation_for_human,
     }
@@ -382,6 +391,7 @@ def _build_response(req: AskRequest, pipeline: QueryPipeline) -> AskResponse:
         override_reason=override_reason,
         operational_recommendations=operational_recommendations,
         explanation_for_human=explanation_for_human,
+        agent_collaboration=agent_collaboration,
         guard_ms=guard_ms,
         retrieve_ms=retrieve_ms,
         generate_ms=generate_ms,

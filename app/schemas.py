@@ -4,13 +4,14 @@ Pydantic models so OpenAPI docs are auto-generated and validation is free.
 """
 from __future__ import annotations
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Literal
+from typing import Any, Literal
 
 
 Method = Literal["bm25", "dense", "hybrid"]
 RiskLevel = Literal["low", "medium", "high"]
 TriageLevel = Literal["NOW", "SOON", "WAIT"]
 SourceType = Literal["doc", "web", "vid", "struct"]
+AgentId = Literal["er_triage", "bed_ops", "care_followup"]
 
 
 class ERState(BaseModel):
@@ -31,6 +32,29 @@ class PredictionSignal(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     reasons: list[str] = Field(default_factory=list)
     recommended_operational_actions: list[str] = Field(default_factory=list)
+
+
+class AgentHandoff(BaseModel):
+    """One action-agent node in the post-triage collaboration graph."""
+    model_config = ConfigDict(extra="forbid")
+    agent_id: AgentId
+    label: str
+    role: str
+    trigger: str
+    receives: list[str] = Field(default_factory=list)
+    actions: list[str] = Field(default_factory=list)
+    # Populated only for nodes that actually EXECUTE (e.g. Bed Ops computes a
+    # disposition from live ER state). None = a routing/descriptive node.
+    output: dict[str, Any] | None = None
+    executed: bool = False
+
+
+class AgentCollaboration(BaseModel):
+    """Human-readable multi-agent routing plan for the current case."""
+    model_config = ConfigDict(extra="forbid")
+    primary_agent: AgentId
+    handoffs: list[AgentHandoff] = Field(default_factory=list)
+    summary: str
 
 
 class AskRequest(BaseModel):
@@ -84,6 +108,7 @@ class AskResponse(BaseModel):
     override_reason: str | None = Field(None, description="why the override logic fired")
     operational_recommendations: list[str] = Field(default_factory=list, description="human-readable operational next actions")
     explanation_for_human: str | None = Field(None, description="plain-English explanation of how triage and prediction were combined")
+    agent_collaboration: AgentCollaboration | None = Field(None, description="multi-agent handoff plan: triage owner plus downstream action agents")
     # Per-node trace timings (ms). Populated on every request for the live trace panel.
     guard_ms: int = Field(0, ge=0, description="input-guardrail latency ms")
     retrieve_ms: int = Field(0, ge=0, description="retrieval latency ms")

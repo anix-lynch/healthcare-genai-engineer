@@ -28,3 +28,8 @@ gate:
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .pytest_cache outputs/
+
+# Agent execution eval — Bed Ops computes a disposition from live ER state;
+# measures task-completion / decision-correctness / tool-call-success.
+agent-eval:
+	python -m evaluation.agent_eval

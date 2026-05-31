@@ -194,6 +194,28 @@ Full breakdown + per-query scores in [`docs/eval-results.md`](docs/eval-results.
 The regression gate (`make gate`) blocks merges if any metric drops past
 tolerance. CI runs it on every PR via [`.github/workflows/eval.yml`](.github/workflows/eval.yml).
 
+### Agent execution metrics (committed at `outputs/agent_eval_summary.json`)
+
+The triage answer hands off to a **Bed Ops agent that actually executes** — it reads
+live ER state (free beds, occupancy, queue) plus predicted length-of-stay and **computes**
+a capacity disposition (`assign_bed` / `board_ed` / `hold_observation` / `divert` /
+`discharge_plan`). The output changes with the inputs, so these numbers measure real
+execution, not a router matching its own labels (`make agent-eval`, 8 labelled scenarios):
+
+```
+task_completion_rate      1.000    produces a valid disposition every time
+decision_correctness      1.000    disposition matches the labelled expectation
+tool_call_success         1.000    actually read ER state into the decision
+handoff_correctness       0.875    Bed Ops engaged when capacity matters
+                                    (<1.0 is honest: labels are independent clinical
+                                     judgement, not a copy of the trigger rule)
+```
+
+A saturated ED with a long queue returns `divert`; the same acute patient with 3 free
+beds returns `assign_bed` — the discriminating test that separates an agent action from a
+constant string. Code: [`app/bed_ops_agent.py`](app/bed_ops_agent.py) · eval:
+[`evaluation/agent_eval.py`](evaluation/agent_eval.py).
+
 ---
 
 ## Common commands
