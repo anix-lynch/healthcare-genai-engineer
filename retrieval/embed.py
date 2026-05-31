@@ -20,30 +20,31 @@ Chunking strategy:
     window+overlap before embedding.
 """
 from __future__ import annotations
+import os
 from typing import Iterable
 
 import numpy as np
 
-from . import dense as _dense
+# EMBEDDING_BACKEND=vertex → Vertex AI text-embedding-005 (768-dim, managed)
+# EMBEDDING_BACKEND=local  → FastEmbed ONNX (384-dim, local, default)
+_BACKEND = os.getenv("EMBEDDING_BACKEND", "local")
+
+if _BACKEND == "vertex":
+    from . import vertex_embed as _backend
+else:
+    from . import dense as _backend  # type: ignore[no-redef]
+
+from . import dense as _dense  # always available for model_name fallback
 
 
 def embed(text: str) -> np.ndarray:
-    """Single-text → unit-normalised vector. Lazy-loads the encoder."""
-    model = _dense._load_model()
-    vec = model.encode([text], normalize_embeddings=True, show_progress_bar=False)
-    return np.asarray(vec[0], dtype=np.float32)
+    """Single-text → unit-normalised vector. Routes to Vertex or local."""
+    return _backend.embed(text)
 
 
 def embed_corpus(texts: Iterable[str], *, batch_size: int = 64) -> np.ndarray:
-    """Many-texts → (N, D) unit-normalised matrix. Batched for speed."""
-    model = _dense._load_model()
-    arr = model.encode(
-        list(texts),
-        normalize_embeddings=True,
-        batch_size=batch_size,
-        show_progress_bar=False,
-    )
-    return np.asarray(arr, dtype=np.float32)
+    """Many-texts → (N, D) unit-normalised matrix."""
+    return _backend.embed_corpus(texts, batch_size=batch_size)
 
 
 def chunk_text(
@@ -71,12 +72,15 @@ def chunk_text(
 
 
 def model_name() -> str:
-    """Public read of the active embedding model (for audit logs)."""
-    return _dense._MODEL_NAME or _dense.DEFAULT_MODEL
+    """Active embedding model name — local or vertex."""
+    return _backend.model_name()
 
 
 def embedding_dim() -> int:
-    """384 for MiniLM-L6. Used by vector_store to validate shape on insert."""
-    _dense._load_model()  # ensure loaded
-    # MiniLM hard-codes 384; this stays accurate unless model swapped.
-    return embed("dim probe").shape[0]
+    """Dimension of active model. 384 (local) or 768 (vertex)."""
+    return _backend.embedding_dim()
+
+
+def active_backend() -> str:
+    """'vertex' or 'local' — for audit logs and eval comparison."""
+    return _BACKEND
