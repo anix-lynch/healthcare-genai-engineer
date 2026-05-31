@@ -9,7 +9,6 @@
 🔗 **Live:** https://healthcare-genai-2ihyeqmb6q-uw.a.run.app
 
 🔎 **Architecture:** [docs/architecture.md](docs/architecture.md)
-🧭 **Remaining senior gaps:** [docs/senior-gaps.md](docs/senior-gaps.md)
 
 [![eval-gate](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml/badge.svg)](https://github.com/anix-lynch/healthcare-genai-engineer/actions/workflows/eval.yml)
 
@@ -67,33 +66,77 @@ Output (live, just run it):
 
 ---
 
-## What's inside
+## Repo Map
+
+What lives where, at a glance:
 
 ```
-app/                  FastAPI: main.py + schemas.py + dependencies.py
-                       + routers/ask.py · routers/health.py
-                       + prediction.py
-retrieval/            BM25 (from-scratch, Okapi k1=1.5/b=0.75)
-                       + dense (sentence-transformers MiniLM)
-                       + RRF hybrid fusion (k=60, Cormack & Buettcher)
-                       + chunking · vector_store · query_pipeline
-generation/           grounded answer + citation validation
-                       template baseline (default), LLM path via USE_LLM flag
-                       supports Anthropic OR OpenAI providers
-guardrails/           input_validator: sanitize + injection regex + token cap
-                       output_validator: citation + length + forbidden-action
-                       pii_masker: SSN · phone · email · CC · MRN · DOB
-evaluation/           golden_set.json (20 hand-curated queries)
-                       ragas_runner.py (custom-proxy faithfulness + relevance)
-                       regression_gate.py (exit 1 on metric drop past tolerance)
-                       baseline.json (committed snapshot)
-jobs/                 ingest_documents · build_index · refresh_eval
-data/raw/             497-row enriched healthcare corpus
-docs/eval-results.md  human-readable summary with ASCII bars
-demo/                 sample_queries.md (5 curl recipes)
-tests/                3 pytest cases over FastAPI TestClient
-Dockerfile · docker-compose.yml · Makefile
+healthcare-genai-engineer/
+├── app/            ✅ FastAPI service — /v1/ask, routing, prediction signal
+├── retrieval/      ✅ BM25 + dense + RRF hybrid — finds the matching records
+├── generation/     ✅ grounded answer + citation validation (template / LLM)
+├── guardrails/     ✅ input/output validators + PII masker (the safety layer)
+├── evaluation/     ✅ golden set + eval runner + regression gate (the proof)
+├── jobs/           ✅ ingest · build index · refresh eval (pipeline jobs)
+├── workflows/      ✅ ESI triage classification
+├── tests/          ✅ pytest over the FastAPI app
+├── data/raw/       ✅ 497-row enriched healthcare corpus (synthetic)
+├── docs/           📖 architecture · eval results · W&B notes
+└── Dockerfile · Makefile  ✅ how it builds, runs, and ships
 ```
+
+<details open>
+<summary><b>Full file tree</b> (every file, plain-language — click to collapse)</summary>
+
+```
+healthcare-genai-engineer/
+├── app/                        the FastAPI service
+│   ├── main.py                 ✅ app entry — wires routers + guards
+│   ├── routers/ask.py          ✅ POST /v1/ask — the whole pipeline
+│   ├── routers/health.py       ✅ health check for Cloud Run
+│   ├── routers/vertex.py       ✅ optional Vertex LLM path
+│   ├── routers/web.py          ✅ serves the demo web page
+│   ├── prediction.py           ✅ future-risk / LOS / bed-pressure signal
+│   ├── grounding.py            ✅ ties answers back to retrieved sources
+│   ├── schemas.py              ✅ request/response contracts
+│   └── dependencies.py         ✅ shared wiring (retriever, config)
+├── retrieval/                  how it finds the right records
+│   ├── retriever.py            ✅ BM25 from scratch (Okapi k1=1.5/b=0.75)
+│   ├── dense.py · embed.py     ✅ dense vectors (MiniLM sentence-transformers)
+│   ├── hybrid_retriever.py     ✅ RRF fusion of BM25 + dense (k=60)
+│   ├── chunking.py             ✅ splits documents into retrievable chunks
+│   ├── vector_store.py         ✅ in-memory index
+│   └── query_pipeline.py       ✅ the retrieval orchestration entry
+├── generation/                 turns retrieved truth into a cited answer
+│   ├── generate.py             ✅ template baseline + optional LLM call
+│   └── citations.py            ✅ validates every claim cites a real source_id
+├── guardrails/                 the safety layer
+│   ├── input_validator.py      ✅ sanitize + injection scan + token cap
+│   ├── output_validator.py     ✅ citation valid + length + forbidden actions
+│   └── pii_masker.py           ✅ masks SSN · phone · email · CC · MRN · DOB
+├── evaluation/                 proves answer quality, blocks regressions
+│   ├── golden_set.json         ✅ 20 hand-curated eval queries
+│   ├── ragas_runner.py         ✅ faithfulness + relevance scoring
+│   ├── multi_method_eval.py    ✅ compares BM25 vs dense vs hybrid
+│   ├── classify_eval.py        ✅ ESI classification eval
+│   ├── regression_gate.py      ✅ exit 1 if a metric drops past tolerance
+│   └── baseline*.json          ✅ committed score snapshots (the floor)
+├── jobs/                       ✅ ingest_documents · build_index · refresh_eval
+├── workflows/classify_esi.py   ✅ ESI triage classification step
+├── scripts/build_dense_index.py ✅ builds the dense vector index
+├── tests/                      ✅ ask · grounding · llm-path · prediction
+├── data/raw/                   ✅ 497-row enriched healthcare corpus (synthetic)
+├── outputs/eval_summary.json   🖼️  latest committed eval result
+├── docs/                       📖 architecture · eval-results · wandb
+├── demo/sample_queries.md      📖 5 curl recipes to try it
+├── deploy/cloudrun.sh          ✅ ships to Cloud Run
+├── Dockerfile · docker-compose ✅ container build + local run
+├── Makefile                    ✅ install · serve · demo · test · eval · gate
+├── .github/workflows/eval.yml  ✅ CI — runs the eval gate on every PR
+├── requirements*.txt           ✅ app deps (deploy split out, leaner image)
+└── README.md · demo.gif        🖼️📖 the 10-second story
+```
+</details>
 
 ---
 
@@ -153,30 +196,6 @@ tolerance. CI runs it on every PR via [`.github/workflows/eval.yml`](.github/wor
 
 ---
 
-## Record your own demo (asciinema)
-
-The JSON above is a faithful sample of `make demo` output. To capture a
-moving terminal recording (useful for LinkedIn / portfolio):
-
-```bash
-# install asciinema (one-time)
-brew install asciinema      # macOS
-# or: pip install asciinema
-
-asciinema rec demo.cast
-# inside the recording:
-make demo
-# Ctrl-D to stop
-
-# upload + share (free public link)
-asciinema upload demo.cast
-```
-
-`demo.cast` is plain text (no binary GIF). Embeds cleanly in any
-markdown reader, plays back at recorded speed.
-
----
-
 ## Common commands
 
 ```bash
@@ -228,13 +247,6 @@ unique patients so the cross-patient leak guard has real surface area to defend.
 Out of scope (intentionally): real EHR / FHIR feeds, HIPAA BAA, multi-cloud
 deployment, autonomous decisioning. The repo is one focused healthcare-RAG
 vertical, not a hospital system.
-
----
-
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for the phase-ordered audit trail (Phase 1 → 6,
-each with the commit hash that shipped it).
 
 ---
 

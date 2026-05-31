@@ -25,3 +25,5 @@ data/dense_index.npz
 Scorecard*
 *resume*
 vertex/
+
+_private/
