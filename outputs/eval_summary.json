@@ -1,13 +1,13 @@
 {
-  "scanned_at": "2026-05-17T05:07:44Z",
+  "scanned_at": "2026-06-01T17:36:49Z",
   "k": 5,
   "n_queries": 20,
   "aggregates": {
-    "any_hit_rate": 0.65,
-    "faithfulness_avg": 0.65,
-    "relevance_avg": 0.5667,
-    "p95_latency_ms": 6,
-    "avg_citations": 1.95
+    "any_hit_rate": 1.0,
+    "faithfulness_avg": 0.75,
+    "relevance_avg": 0.8833,
+    "p95_latency_ms": 14,
+    "avg_citations": 3
   },
   "per_query": [
     {
@@ -15,17 +15,17 @@
       "query": "62yo male chest pain hypertension",
       "any_hit": 1.0,
       "faithfulness": 1.0,
-      "condition_relevance": 0.6666666666666666,
+      "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 6
+      "latency_ms": 14
     },
     {
       "id": "Q-002",
       "query": "elderly female chest pain emergency",
       "any_hit": 1.0,
       "faithfulness": 1.0,
-      "condition_relevance": 0.6666666666666666,
+      "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 0
@@ -35,7 +35,7 @@
       "query": "diabetic patient with hyperglycemia",
       "any_hit": 1.0,
       "faithfulness": 1.0,
-      "condition_relevance": 0.0,
+      "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 0
@@ -65,7 +65,7 @@
       "query": "obesity bariatric complication",
       "any_hit": 1.0,
       "faithfulness": 1.0,
-      "condition_relevance": 1.0,
+      "condition_relevance": 0.3333333333333333,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 0
@@ -74,7 +74,7 @@
       "id": "Q-007",
       "query": "arthritis joint pain ibuprofen",
       "any_hit": 1.0,
-      "faithfulness": 1.0,
+      "faithfulness": 0.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
@@ -94,7 +94,7 @@
       "id": "Q-009",
       "query": "female cancer chemo paracetamol",
       "any_hit": 1.0,
-      "faithfulness": 1.0,
+      "faithfulness": 0.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
@@ -123,31 +123,31 @@
     {
       "id": "Q-012",
       "query": "chest pressure diaphoresis jaw radiation",
-      "any_hit": 0.0,
-      "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "any_hit": 1.0,
+      "faithfulness": 1.0,
+      "condition_relevance": 0.3333333333333333,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {
       "id": "Q-013",
       "query": "septic shock low blood pressure",
-      "any_hit": 0.0,
+      "any_hit": 1.0,
       "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {
       "id": "Q-014",
       "query": "stroke symptoms slurred speech weakness",
-      "any_hit": 0.0,
+      "any_hit": 1.0,
       "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "condition_relevance": 0.6666666666666666,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {
@@ -163,41 +163,41 @@
     {
       "id": "Q-016",
       "query": "acute MI substernal pressure",
-      "any_hit": 0.0,
-      "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "any_hit": 1.0,
+      "faithfulness": 1.0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {
       "id": "Q-017",
       "query": "pediatric respiratory distress wheezing",
-      "any_hit": 0.0,
-      "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "any_hit": 1.0,
+      "faithfulness": 1.0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {
       "id": "Q-018",
       "query": "elderly fall head strike anticoagulant",
-      "any_hit": 0.0,
-      "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "any_hit": 1.0,
+      "faithfulness": 1.0,
+      "condition_relevance": 0.3333333333333333,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {
       "id": "Q-019",
       "query": "diabetic ketoacidosis vomiting",
-      "any_hit": 0.0,
+      "any_hit": 1.0,
       "faithfulness": 0.0,
-      "condition_relevance": 0.0,
-      "retrieved_count": 0,
-      "n_citations": 0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
       "latency_ms": 0
     },
     {

@@ -2,17 +2,24 @@
 
 Use in CI:
     python -m evaluation.regression_gate
-        compares outputs/eval_summary.json vs evaluation/baseline.json
+        compares outputs/eval_summary.json     vs evaluation/baseline.json        (retrieval/grounding)
+        compares outputs/agent_eval_summary.json vs evaluation/agent_baseline.json (agent/handoff)
         exits 1 if any tracked metric drops by more than its tolerance
 
 Tracked metrics + tolerances:
-    any_hit_rate         tolerance 0.05  (5pp drop blocks)
-    faithfulness_avg      tolerance 0.05
-    relevance_avg          tolerance 0.10
-    p95_latency_ms         tolerance +200ms (latency creeping UP blocks)
+    RETRIEVAL / GROUNDING (eval_summary.json):
+        any_hit_rate         tolerance 0.05  (5pp drop blocks)
+        faithfulness_avg     tolerance 0.05
+        relevance_avg        tolerance 0.10
+        p95_latency_ms       tolerance +200ms (latency creeping UP blocks)
+    AGENT / HANDOFF (agent_eval_summary.json):
+        task_completion_rate tolerance 0.05
+        decision_correctness tolerance 0.05
+        tool_call_success    tolerance 0.05
+        handoff_correctness  tolerance 0.05
 
-This is the gate "your repo will not merge if Recall@K dropped 10%."
-Mainly here as a signal — the actual CI wiring is queued.
+This is the gate "your repo will not merge if Recall@K dropped 10% OR the agent
+handoff stopped routing to the right owner." Wired into .github/workflows/eval.yml.
 """
 from __future__ import annotations
 import json
@@ -22,6 +29,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CURRENT = REPO_ROOT / "outputs" / "eval_summary.json"
 BASELINE = REPO_ROOT / "evaluation" / "baseline.json"
+AGENT_CURRENT = REPO_ROOT / "outputs" / "agent_eval_summary.json"
+AGENT_BASELINE = REPO_ROOT / "evaluation" / "agent_baseline.json"
 
 TOLERANCES = {
     "any_hit_rate":      0.05,
@@ -30,18 +39,24 @@ TOLERANCES = {
     "p95_latency_ms":    -200,   # NEGATIVE because higher latency = worse
 }
 
+# Agent-execution metrics live in agent_eval_summary.json under "metrics",
+# not "aggregates" — higher is better, 5pp drop blocks.
+AGENT_TOLERANCES = {
+    "task_completion_rate": 0.05,
+    "decision_correctness": 0.05,
+    "tool_call_success":    0.05,
+    "handoff_correctness":  0.05,
+}
+
 
 class RegressionViolation(ValueError):
     """Raised when an eval metric drops past its tolerance."""
 
 
-def check_regression(current: dict, baseline: dict) -> list[str]:
-    """Return list of violation messages. Empty = pass."""
+def _check(cur_agg: dict, base_agg: dict, tolerances: dict) -> list[str]:
+    """Compare one metrics block against its baseline. Empty = pass."""
     violations: list[str] = []
-    cur_agg = current.get("aggregates", {})
-    base_agg = baseline.get("aggregates", {})
-
-    for metric, tol in TOLERANCES.items():
+    for metric, tol in tolerances.items():
         cur = cur_agg.get(metric)
         base = base_agg.get(metric)
         if cur is None or base is None:
@@ -61,6 +76,16 @@ def check_regression(current: dict, baseline: dict) -> list[str]:
     return violations
 
 
+def check_regression(current: dict, baseline: dict) -> list[str]:
+    """Retrieval/grounding metrics live under 'aggregates'."""
+    return _check(current.get("aggregates", {}), baseline.get("aggregates", {}), TOLERANCES)
+
+
+def check_agent_regression(current: dict, baseline: dict) -> list[str]:
+    """Agent-execution metrics live under 'metrics'."""
+    return _check(current.get("metrics", {}), baseline.get("metrics", {}), AGENT_TOLERANCES)
+
+
 def main():
     if not CURRENT.exists():
         sys.exit(f"current eval missing: {CURRENT}. Run `python -m evaluation.ragas_runner` first.")
@@ -73,9 +98,20 @@ def main():
     baseline = json.loads(BASELINE.read_text())
     violations = check_regression(current, baseline)
 
+    # Agent/handoff gate — only runs if both the current run and a baseline exist.
+    if AGENT_CURRENT.exists():
+        if not AGENT_BASELINE.exists():
+            print(f"no agent baseline at {AGENT_BASELINE} — seeding from current agent eval (first run)")
+            AGENT_BASELINE.write_text(AGENT_CURRENT.read_text())
+        else:
+            violations += check_agent_regression(
+                json.loads(AGENT_CURRENT.read_text()),
+                json.loads(AGENT_BASELINE.read_text()),
+            )
+
     print("=== regression gate ===")
     if not violations:
-        print("✅ PASS — no metric regressed past tolerance")
+        print("✅ PASS — no metric regressed past tolerance (retrieval + grounding + agent/handoff)")
         sys.exit(0)
     print(f"❌ FAIL — {len(violations)} violations:")
     for v in violations:

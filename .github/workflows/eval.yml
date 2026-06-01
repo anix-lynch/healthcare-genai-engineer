@@ -32,8 +32,13 @@ jobs:
       - name: make eval
         run: make eval
 
-      # Regression gate — compares vs evaluation/baseline.json
-      # Exits 1 if any tracked metric drops past tolerance
+      # Agent-execution eval — Bed Ops disposition + handoff correctness
+      # Writes outputs/agent_eval_summary.json (consumed by the gate)
+      - name: make agent-eval
+        run: make agent-eval
+
+      # Regression gate — compares vs evaluation/baseline.json + agent_baseline.json
+      # Exits 1 if any retrieval/grounding OR agent/handoff metric drops past tolerance
       - name: make gate
         run: make gate
 
@@ -43,5 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eval-summary
-          path: outputs/eval_summary.json
+          path: |
+            outputs/eval_summary.json
+            outputs/agent_eval_summary.json
           retention-days: 30

@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-06-01T17:49:41.375710Z",
+  "url": "https://healthcare-genai-2ihyeqmb6q-uw.a.run.app/v1/ask",
+  "triage_level": "NOW",
+  "esi_red_flags": [
+    "high_risk_keyword:chest pain",
+    "high_risk_keyword:diaphoresis"
+  ],
+  "override_applied": false,
+  "prediction_signal": {
+    "risk_level": "high",
+    "predicted_los_hours": 48.0,
+    "deterioration_risk": "high",
+    "bed_pressure_risk": "medium",
+    "confidence": 0.79,
+    "reasons": [
+      "acute-sounding symptoms or precedent patterns suggest elevated deterioration risk",
+      "predicted length of stay is high, which increases operational load",
+      "long predicted stay creates likely downstream bed pressure even without live ER state"
+    ],
+    "recommended_operational_actions": [
+      "Increase monitoring frequency",
+      "Flag nurse review for potential escalation",
+      "Flag bed management because predicted LOS is high",
+      "Monitor queue and bed availability"
+    ]
+  },
+  "handoff_chain": "ER Triage Agent -> Bed Ops Agent -> Care Follow-up Agent",
+  "primary_agent": "er_triage",
+  "runtime_mode": "cloud_run_24_7_stateless",
+  "loop_guard": "no_self_requeue_duplicate_keys_or_unbounded_retries",
+  "max_graph_steps": 3,
+  "dead_end_policy": "escalate_to_human_owner_after_retry_budget",
+  "per_agent": [
+    {
+      "agent": "er_triage",
+      "handoff_key": "er_triage:NOW:risk-high:det-high:bed-medium",
+      "retry_max": 1,
+      "stop": [
+        "triage_level_confirmed",
+        "safety_floor_applied"
+      ],
+      "escalation": "clinician_review_if_NOW_or_red_flags_fire"
+    },
+    {
+      "agent": "bed_ops",
+      "handoff_key": "bed_ops:NOW:risk-high:det-high:bed-medium",
+      "retry_max": 2,
+      "stop": [
+        "bed_status_confirmed",
+        "retry_budget_exhausted"
+      ],
+      "escalation": "charge_nurse_review"
+    },
+    {
+      "agent": "care_followup",
+      "handoff_key": "care_followup:NOW:risk-high:det-high:bed-medium",
+      "retry_max": 2,
+      "stop": [
+        "recheck_scheduled",
+        "nurse_review_requested",
+        "retry_budget_exhausted"
+      ],
+      "escalation": "nurse_review_queue"
+    }
+  ],
+  "latency_ms": 13,
+  "method_used": "hybrid"
+}
