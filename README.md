@@ -2,7 +2,7 @@
 
 > 🟦 **L2 Action** part of the [L1→L3 healthcare AI platform](https://gozeroshot.dev) — Truth → Features → Signals → Actions → Human adoption. This repo = grounded, guardrailed RAG that turns retrieved truth into cited answers.
 
-> **Healthcare RAG service** — FastAPI + BM25/dense hybrid retrieval + custom-proxy eval + PII guardrails + regression gate. One ER-triage workflow, end-to-end.
+> **Healthcare GenAI service** — FastAPI + BM25/dense hybrid retrieval + bounded multi-agent handoff + PII guardrails + regression gate. ER triage → Bed Ops → Care Follow-up, end-to-end.
 
 ![Demo](demo.gif)
 
@@ -68,75 +68,57 @@ Output (live, just run it):
 
 ## Repo Map
 
-What lives where, at a glance:
-
 ```
 healthcare-genai-engineer/
-├── app/            ✅ FastAPI service — /v1/ask, routing, prediction signal
-├── retrieval/      ✅ BM25 + dense + RRF hybrid — finds the matching records
-├── generation/     ✅ grounded answer + citation validation (template / LLM)
-├── guardrails/     ✅ input/output validators + PII masker (the safety layer)
-├── evaluation/     ✅ golden set + eval runner + regression gate (the proof)
-├── jobs/           ✅ ingest · build index · refresh eval (pipeline jobs)
-├── workflows/      ✅ ESI triage classification
-├── tests/          ✅ pytest over the FastAPI app
-├── data/raw/       ✅ 497-row enriched healthcare corpus (synthetic)
-├── docs/           📖 architecture · eval results · W&B notes
-└── Dockerfile · Makefile  ✅ how it builds, runs, and ships
-```
-
-<details open>
-<summary><b>Full file tree</b> (every file, plain-language — click to collapse)</summary>
-
-```
-healthcare-genai-engineer/
-├── app/                        the FastAPI service
-│   ├── main.py                 ✅ app entry — wires routers + guards
-│   ├── routers/ask.py          ✅ POST /v1/ask — the whole pipeline
-│   ├── routers/health.py       ✅ health check for Cloud Run
-│   ├── routers/vertex.py       ✅ optional Vertex LLM path
-│   ├── routers/web.py          ✅ serves the demo web page
-│   ├── prediction.py           ✅ future-risk / LOS / bed-pressure signal
-│   ├── grounding.py            ✅ ties answers back to retrieved sources
-│   ├── schemas.py              ✅ request/response contracts
-│   └── dependencies.py         ✅ shared wiring (retriever, config)
-├── retrieval/                  how it finds the right records
-│   ├── retriever.py            ✅ BM25 from scratch (Okapi k1=1.5/b=0.75)
-│   ├── dense.py · embed.py     ✅ dense vectors (MiniLM sentence-transformers)
-│   ├── hybrid_retriever.py     ✅ RRF fusion of BM25 + dense (k=60)
-│   ├── chunking.py             ✅ splits documents into retrievable chunks
-│   ├── vector_store.py         ✅ in-memory index
-│   └── query_pipeline.py       ✅ the retrieval orchestration entry
-├── generation/                 turns retrieved truth into a cited answer
-│   ├── generate.py             ✅ template baseline + optional LLM call
-│   └── citations.py            ✅ validates every claim cites a real source_id
-├── guardrails/                 the safety layer
-│   ├── input_validator.py      ✅ sanitize + injection scan + token cap
-│   ├── output_validator.py     ✅ citation valid + length + forbidden actions
-│   └── pii_masker.py           ✅ masks SSN · phone · email · CC · MRN · DOB
-├── evaluation/                 proves answer quality, blocks regressions
-│   ├── golden_set.json         ✅ 20 hand-curated eval queries
-│   ├── ragas_runner.py         ✅ faithfulness + relevance scoring
-│   ├── multi_method_eval.py    ✅ compares BM25 vs dense vs hybrid
-│   ├── classify_eval.py        ✅ ESI classification eval
-│   ├── regression_gate.py      ✅ exit 1 if a metric drops past tolerance
-│   └── baseline*.json          ✅ committed score snapshots (the floor)
-├── jobs/                       ✅ ingest_documents · build_index · refresh_eval
-├── workflows/classify_esi.py   ✅ ESI triage classification step
+├── app/                         the FastAPI service
+│   ├── main.py                  ✅ entry — wires routers + guards
+│   ├── routers/ask.py           ✅ POST /v1/ask — the full pipeline
+│   ├── routers/vertex.py        ✅ ER Insight Console (4-pane doctor UI)
+│   ├── routers/web.py           ✅ simple demo web page
+│   ├── routers/health.py        ✅ health check for Cloud Run
+│   ├── agents.py                ✅ multi-agent handoff planner (ER→BedOps→CareFollowup)
+│   ├── bed_ops_agent.py         ✅ Bed Ops execution — reads ER state, returns disposition
+│   ├── prediction.py            ✅ LOS · risk · bed-pressure forward signal
+│   ├── grounding.py             ✅ 4-lane evidence contract (doc/struct/web/vid)
+│   ├── schemas.py               ✅ request/response contracts + agent handoff shape
+│   └── dependencies.py          ✅ shared wiring (retriever, config)
+├── retrieval/                   how it finds the right records
+│   ├── retriever.py             ✅ BM25 from scratch (Okapi k1=1.5/b=0.75)
+│   ├── dense.py · embed.py      ✅ dense vectors + embedding facade (local / Vertex toggle)
+│   ├── hybrid_retriever.py      ✅ RRF fusion of BM25 + dense (k=60)
+│   ├── chunking.py              ✅ splits documents into retrievable chunks
+│   ├── vector_store.py          ✅ in-memory index
+│   └── query_pipeline.py        ✅ retrieval orchestration entry
+├── generation/                  turns retrieved truth into a cited answer
+│   ├── generate.py              ✅ template baseline + optional LLM call
+│   └── citations.py             ✅ validates every claim cites a real source_id
+├── guardrails/                  the safety layer
+│   ├── input_validator.py       ✅ sanitize + injection scan + token cap
+│   ├── output_validator.py      ✅ citation valid + length + forbidden actions
+│   └── pii_masker.py            ✅ masks SSN · phone · email · CC · MRN · DOB
+├── evaluation/                  proves quality, blocks regressions
+│   ├── golden_set.json          ✅ 20 hand-curated eval queries
+│   ├── ragas_runner.py          ✅ faithfulness + relevance scoring
+│   ├── multi_method_eval.py     ✅ BM25 vs dense vs hybrid comparison
+│   ├── classify_eval.py         ✅ ESI classification eval
+│   ├── agent_eval.py            ✅ agent handoff correctness (8 scenarios)
+│   ├── regression_gate.py       ✅ exit 1 if metric drops past tolerance
+│   └── baseline*.json           ✅ committed score snapshots (the floor)
+├── jobs/                        ✅ ingest_documents · build_index · refresh_eval
+├── workflows/classify_esi.py    ✅ rule-based + RAG-KNN ESI triage
 ├── scripts/build_dense_index.py ✅ builds the dense vector index
-├── tests/                      ✅ ask · grounding · llm-path · prediction
-├── data/raw/                   ✅ 497-row enriched healthcare corpus (synthetic)
-├── outputs/eval_summary.json   🖼️  latest committed eval result
-├── docs/                       📖 architecture · eval-results · wandb
-├── demo/sample_queries.md      📖 5 curl recipes to try it
-├── deploy/cloudrun.sh          ✅ ships to Cloud Run
-├── Dockerfile · docker-compose ✅ container build + local run
-├── Makefile                    ✅ install · serve · demo · test · eval · gate
-├── .github/workflows/eval.yml  ✅ CI — runs the eval gate on every PR
-├── requirements*.txt           ✅ app deps (deploy split out, leaner image)
-└── README.md · demo.gif        🖼️📖 the 10-second story
+├── tests/                       ✅ 53 tests — ask · agents · grounding · prediction
+├── data/raw/                    ✅ 497-row enriched healthcare corpus (synthetic)
+├── outputs/                     🖼️ eval_summary.json · agent_eval_summary.json
+├── docs/                        📖 architecture · eval-results · wandb
+├── demo/sample_queries.md       📖 curl recipes
+├── deploy/cloudrun.sh           ✅ ships to Cloud Run
+├── Dockerfile · docker-compose  ✅ container build + local run
+├── Makefile                     ✅ install · serve · demo · test · eval · gate · agent-eval
+├── .github/workflows/eval.yml   ✅ CI — eval gate on every PR
+├── requirements*.txt            ✅ app deps (deploy split leaner)
+└── README.md · demo.gif         🖼️📖 the 10-second story
 ```
-</details>
 
 ---
 

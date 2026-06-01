@@ -1,20 +1,24 @@
 # Architecture
 
-This repo is intentionally a single request-time workflow, not a generic AI platform.
-The core path is:
+POST /v1/ask runs one bounded pipeline, then optionally hands off to action agents.
 
 ```text
-GET /                    → single-page visualizer
-POST /v1/ask             → input guard → retrieval → generation → triage/fuse → output guard
-evaluation/*             → golden-set eval + regression gate
-docs/wandb.md            → trace model for per-stage debugging
+POST /v1/ask
+  → input guard (sanitize · injection · PII mask)
+  → retrieval  (BM25 / dense / hybrid over 497-row corpus)
+  → generation (grounded answer + citation validation)
+  → triage     (rule-based + RAG-KNN ESI fusion)
+  → prediction (LOS · risk · bed pressure signal)
+  → agent handoff (ER Triage → Bed Ops → Care Follow-up)
+  → output guard (citation valid · forbidden actions · length)
+  → AskResponse JSON
 ```
 
 ## Request flow
 
 ```mermaid
 flowchart LR
-    A[Browser UI / /] --> B[POST /v1/ask]
+    A[Browser / /vertex] --> B[POST /v1/ask]
     B --> C[input guardrails]
     C --> D[PII redaction]
     D --> E[QueryPipeline.retrieve]
@@ -25,38 +29,47 @@ flowchart LR
     C --> J[classify_rule]
     I --> K[fuse_esi]
     J --> K
-    K --> L[triage / prediction overlay]
-    L --> M[AskResponse + trace_call_id]
+    K --> L[prediction overlay]
+    L --> M[plan_collaboration — agents.py]
+    M --> N[AskResponse + agent_handoff]
 ```
+
+## Multi-agent handoff
+
+`app/agents.py` returns a deterministic collaboration graph — not a free-running swarm.
+
+```text
+ER Triage Agent
+  -> Bed Ops Agent        (NOW + bed pressure / long LOS → execute capacity action)
+  -> Care Follow-up Agent (SOON/WAIT + future risk → schedule monitoring)
+```
+
+Each node carries: `handoff_key` (idempotency), `retry_policy.max_attempts`, `stop_conditions`, `escalation` owner. Graph capped at 3 nodes. `app/bed_ops_agent.py` executes the Bed Ops node — reads live ER state, computes `assign_bed / board_ed / divert / discharge_plan`.
 
 ## Where each concern lives
 
-- `app/main.py` mounts the public surface and initializes tracing.
-- `app/routers/web.py` serves the live UI and eval panel.
-- `app/routers/ask.py` is the single workflow entrypoint.
-- `retrieval/query_pipeline.py` is the retriever facade and fallback boundary.
-- `retrieval/retriever.py`, `retrieval/dense.py`, `retrieval/hybrid_retriever.py` implement the engines.
-- `generation/generate.py` produces grounded answers and citation output.
-- `guardrails/input_validator.py` and `guardrails/output_validator.py` handle safety and reject paths.
-- `workflows/classify_esi.py` turns retrieved examples into triage labels.
-- `app/prediction.py` adds the forward-looking operational signal.
-- `evaluation/ragas_runner.py`, `evaluation/multi_method_eval.py`, and `evaluation/regression_gate.py` form the quality loop.
+- `app/main.py` — mounts routers + initializes tracing
+- `app/routers/ask.py` — single pipeline entrypoint
+- `app/routers/vertex.py` — ER Insight Console (4-pane doctor UI)
+- `app/routers/web.py` — simple demo web page
+- `app/agents.py` — multi-agent handoff planner
+- `app/bed_ops_agent.py` — Bed Ops execution agent (reads ER state → disposition)
+- `app/prediction.py` — LOS / risk / bed-pressure forward signal
+- `app/grounding.py` — 4-lane evidence contract (doc / struct / web / vid)
+- `retrieval/query_pipeline.py` — retriever facade + fallback boundary
+- `retrieval/retriever.py` · `dense.py` · `hybrid_retriever.py` — BM25 / dense / RRF engines
+- `generation/generate.py` — grounded answer + optional LLM call
+- `generation/citations.py` — validates every claim cites a real source_id
+- `guardrails/` — input/output validators + PII masker
+- `workflows/classify_esi.py` — rule-based + RAG-KNN ESI classification
+- `evaluation/ragas_runner.py` · `regression_gate.py` — quality loop + CI gate
+- `evaluation/agent_eval.py` — agent handoff correctness eval (8 scenarios)
 
 ## What a reviewer can verify
 
-- `make test` proves the request contract still works.
-- `make eval` writes `outputs/eval_summary.json`.
-- `make gate` blocks metric regressions against `evaluation/baseline.json`.
-- `docs/wandb.md` explains how the trace tree is supposed to answer “what ran, what failed, what fell back”.
-
-## Current senior signal
-
-This repo is stronger than a demo because it has:
-
-- a single runtime workflow with explicit boundaries,
-- runnable evaluation against a golden set,
-- observable stage timings and trace IDs,
-- safety rails before and after generation,
-- a clear fallback story for dense / hybrid retrieval.
-
-The remaining work is mostly presentation polish and richer proof artifacts, not missing core mechanics.
+```bash
+make test        # 53 tests green
+make eval        # writes outputs/eval_summary.json
+make gate        # blocks metric regressions vs baseline.json
+make agent-eval  # writes outputs/agent_eval_summary.json
+```
