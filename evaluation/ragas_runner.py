@@ -56,9 +56,12 @@ def score_query(client: TestClient, q: dict, *, k: int = 5) -> dict:
             if "halluc" in w.lower() or "dropped" in w.lower():
                 faithfulness = 0.0
 
-    # Retrieval relevance proxy: condition match in any returned snippet
+    # Retrieval relevance proxy: condition match in any returned snippet.
+    # `condition_relevance` is the FRACTION of citations that match (precision-ish);
+    # `hit_at_5` is whether AT LEAST ONE of the top-k matched (coverage / hit@k).
     relevance = 0.0
     expected_cond = q.get("expects_condition")
+    matches = 0
     if expected_cond and citations:
         matches = sum(
             1 for c in citations if expected_cond.lower() in c["snippet"].lower()
@@ -67,12 +70,26 @@ def score_query(client: TestClient, q: dict, *, k: int = 5) -> dict:
     elif citations:
         relevance = 1.0  # nothing expected → any hit is fine
 
-    any_hit = 1.0 if retrieved_count > 0 else 0.0
+    # hit_at_5 = a REAL grounding-coverage number: did the top-k contain a snippet
+    # matching the query's labelled condition? NOT the old vacuous "did retrieval
+    # return anything" (which is 1.0 for every non-empty query — a forbidden 100%
+    # hit@k headline under the L2 SLA). Only LABELLED queries can be scored; a query
+    # with no expects_condition is `None` (excluded from the rate, NOT auto-passed,
+    # so the vacuous-presence behaviour cannot sneak back in via the denominator).
+    #
+    # NOTE: this is a loose substring proxy. The RIGOROUS retrieval eval — strict
+    # gold match on condition+gender+age, with Precision@5 / MRR / NDCG — lives in
+    # evaluation/multi_method_eval.py and is the number to quote for retrieval quality.
+    if expected_cond is not None:
+        hit_at_5 = 1.0 if matches > 0 else 0.0
+    else:
+        hit_at_5 = None  # unlabelled → not scorable, excluded from hit_at_5_rate
 
     return {
         "id": q["id"],
         "query": q["query"],
-        "any_hit": any_hit,
+        "hit_at_5": hit_at_5,
+        "labelled": expected_cond is not None,
         "faithfulness": faithfulness,
         "condition_relevance": relevance,
         "retrieved_count": retrieved_count,
@@ -90,12 +107,17 @@ def run_eval(k: int = 5) -> dict:
         golden = json.load(f)
     rows = [score_query(client, q, k=k) for q in golden["queries"]]
 
+    labelled = [r for r in rows if r["hit_at_5"] is not None]
     bundle = {
         "scanned_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "k": k,
         "n_queries": len(rows),
+        "n_labelled": len(labelled),
         "aggregates": {
-            "any_hit_rate":      round(mean(r["any_hit"] for r in rows), 4),
+            # hit_at_5_rate scored over LABELLED queries only (unlabelled excluded,
+            # not auto-passed). This is a loose grounding-coverage proxy — quote
+            # multi_method_eval for rigorous Hit@5 / Precision@5 / MRR / NDCG.
+            "hit_at_5_rate":     round(mean(r["hit_at_5"] for r in labelled), 4) if labelled else None,
             "faithfulness_avg":  round(mean(r["faithfulness"] for r in rows), 4),
             "relevance_avg":     round(mean(r["condition_relevance"] for r in rows), 4),
             "p95_latency_ms":    sorted(r["latency_ms"] for r in rows)[int(0.95 * len(rows))],
@@ -113,11 +135,14 @@ def main():
         json.dump(bundle, f, indent=2, default=str)
 
     agg = bundle["aggregates"]
-    print(f"=== golden-set eval · n={bundle['n_queries']} · k={bundle['k']} ===")
-    print(_ascii_bar("any_hit_rate",       agg["any_hit_rate"]))
+    print(f"=== golden-set eval · n={bundle['n_queries']} · k={bundle['k']} "
+          f"· labelled={bundle['n_labelled']} ===")
+    print(_ascii_bar(f"hit_at_5 (loose, n={bundle['n_labelled']})", agg["hit_at_5_rate"]))
     print(_ascii_bar("faithfulness_avg",   agg["faithfulness_avg"]))
     print(_ascii_bar("condition_relevance",agg["relevance_avg"]))
     print(f"p95 latency: {agg['p95_latency_ms']} ms · avg citations/query: {agg['avg_citations']}")
+    print("note: loose substring proxy over labelled queries; rigorous Hit@5/"
+          "Precision@5/MRR/NDCG → evaluation/multi_method_eval.py")
     print(f"\nwrote {OUT}")
 
 

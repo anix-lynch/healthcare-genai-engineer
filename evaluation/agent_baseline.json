@@ -1,83 +1,10 @@
 {
+  "_note": "Regression baseline for the agent-execution eval. Reseeded 2026-06-07 when the labelled set expanded 8 -> 50 scenarios. The regression gate (evaluation/regression_gate.py) blocks any metric dropping >0.05 vs these numbers. decision_correctness 0.94 and handoff_correctness 0.94 already price in 6 classified boundary misses (3 decision, 3 handoff) documented in docs/agent_eval_design.md — they are accepted, not bugs to chase to 1.0.",
   "metrics": {
-    "n_scenarios": 8,
+    "n_scenarios": 50,
     "task_completion_rate": 1.0,
-    "decision_correctness": 1.0,
+    "decision_correctness": 0.94,
     "tool_call_success": 1.0,
-    "handoff_correctness": 0.875
-  },
-  "scenarios": [
-    {
-      "scenario": "NOW, beds free",
-      "disposition": "assign_bed",
-      "expected": "assign_bed",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": true
-    },
-    {
-      "scenario": "NOW, saturated + backlog",
-      "disposition": "divert",
-      "expected": "divert",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": true
-    },
-    {
-      "scenario": "NOW, full but calm queue",
-      "disposition": "board_ed",
-      "expected": "board_ed",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": true
-    },
-    {
-      "scenario": "WAIT, long stay, 1 bed",
-      "disposition": "hold_observation",
-      "expected": "hold_observation",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": true
-    },
-    {
-      "scenario": "SOON, beds free",
-      "disposition": "assign_bed",
-      "expected": "assign_bed",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": false,
-      "handoff_correct": true
-    },
-    {
-      "scenario": "WAIT, no beds, short stay",
-      "disposition": "discharge_plan",
-      "expected": "discharge_plan",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": false
-    },
-    {
-      "scenario": "NOW, one bed left",
-      "disposition": "assign_bed",
-      "expected": "assign_bed",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": true
-    },
-    {
-      "scenario": "SOON, long stay, scarce",
-      "disposition": "hold_observation",
-      "expected": "hold_observation",
-      "correct": true,
-      "tool_call_success": true,
-      "bed_ops_triggered": true,
-      "handoff_correct": true
-    }
-  ]
+    "handoff_correctness": 0.94
+  }
 }

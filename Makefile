@@ -1,4 +1,4 @@
-.PHONY: install serve demo test eval gate clean
+.PHONY: install serve demo test eval gate clean agent-eval adversarial-eval
 
 install:
 	pip install -r requirements.txt
@@ -30,6 +30,14 @@ clean:
 	rm -rf .pytest_cache outputs/
 
 # Agent execution eval — Bed Ops computes a disposition from live ER state;
-# measures task-completion / decision-correctness / tool-call-success.
+# measures task-completion / decision-correctness / tool-call-success across
+# 50 labelled scenarios (evaluation/agent_scenarios.json). See docs/agent_eval_design.md.
 agent-eval:
 	python -m evaluation.agent_eval
+
+# Adversarial / safety slice — injection (known + paraphrased), benign precision,
+# empty-input, oversize, control-char, empty-retrieval refusal, output-action guard.
+# Reports honest injection recall (regex baseline is not exhaustive); gates the
+# mechanical + precision checks. Writes outputs/adversarial_summary.json.
+adversarial-eval:
+	python -m evaluation.adversarial_eval

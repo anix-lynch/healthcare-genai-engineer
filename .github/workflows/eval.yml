@@ -33,9 +33,16 @@ jobs:
         run: make eval
 
       # Agent-execution eval — Bed Ops disposition + handoff correctness
-      # Writes outputs/agent_eval_summary.json (consumed by the gate)
+      # over 50 labelled scenarios. Writes outputs/agent_eval_summary.json
+      # (consumed by the gate). Floors hold with classified boundary misses.
       - name: make agent-eval
         run: make agent-eval
+
+      # Adversarial / safety slice — injection (incl. paraphrased), benign
+      # precision, empty-input, oversize, control-char, empty-retrieval refusal,
+      # output-action guard. Blocks the build if any gated safety check fails.
+      - name: make adversarial-eval
+        run: make adversarial-eval
 
       # Regression gate — compares vs evaluation/baseline.json + agent_baseline.json
       # Exits 1 if any retrieval/grounding OR agent/handoff metric drops past tolerance
@@ -51,4 +58,5 @@ jobs:
           path: |
             outputs/eval_summary.json
             outputs/agent_eval_summary.json
+            outputs/adversarial_summary.json
           retention-days: 30
