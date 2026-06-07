@@ -70,25 +70,23 @@ def score_query(client: TestClient, q: dict, *, k: int = 5) -> dict:
     elif citations:
         relevance = 1.0  # nothing expected → any hit is fine
 
-    # hit_at_5 = a REAL grounding-coverage number: did the top-k contain a snippet
-    # matching the query's labelled condition? NOT the old vacuous "did retrieval
-    # return anything" (which is 1.0 for every non-empty query — a forbidden 100%
-    # hit@k headline under the L2 SLA). Only LABELLED queries can be scored; a query
-    # with no expects_condition is `None` (excluded from the rate, NOT auto-passed,
-    # so the vacuous-presence behaviour cannot sneak back in via the denominator).
-    #
-    # NOTE: this is a loose substring proxy. The RIGOROUS retrieval eval — strict
-    # gold match on condition+gender+age, with Precision@5 / MRR / NDCG — lives in
-    # evaluation/multi_method_eval.py and is the number to quote for retrieval quality.
+    # grounding_hit = a loose GROUNDING-COVERAGE proxy: did the top-k contain a
+    # snippet matching the query's labelled condition? Deliberately NOT named
+    # "hit@k": it is a loose substring check over a thin 18-query set, so it is NOT
+    # the retrieval-quality headline. The RIGOROUS retrieval number — strict gold
+    # match on condition+gender+age, BM25 Hit@5 0.95 / Precision@5 0.36 / MRR 0.90 /
+    # NDCG@10 0.89 — lives in evaluation/multi_method_eval.py and is what to quote.
+    # (This replaced a vacuous any_hit=1.0-if-anything-returned metric.) Unlabelled
+    # queries score None (excluded from the rate, NOT auto-passed).
     if expected_cond is not None:
-        hit_at_5 = 1.0 if matches > 0 else 0.0
+        grounding_hit = 1.0 if matches > 0 else 0.0
     else:
-        hit_at_5 = None  # unlabelled → not scorable, excluded from hit_at_5_rate
+        grounding_hit = None  # unlabelled → not scorable, excluded from the rate
 
     return {
         "id": q["id"],
         "query": q["query"],
-        "hit_at_5": hit_at_5,
+        "grounding_hit": grounding_hit,
         "labelled": expected_cond is not None,
         "faithfulness": faithfulness,
         "condition_relevance": relevance,
@@ -107,17 +105,17 @@ def run_eval(k: int = 5) -> dict:
         golden = json.load(f)
     rows = [score_query(client, q, k=k) for q in golden["queries"]]
 
-    labelled = [r for r in rows if r["hit_at_5"] is not None]
+    labelled = [r for r in rows if r["grounding_hit"] is not None]
     bundle = {
         "scanned_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "k": k,
         "n_queries": len(rows),
         "n_labelled": len(labelled),
         "aggregates": {
-            # hit_at_5_rate scored over LABELLED queries only (unlabelled excluded,
-            # not auto-passed). This is a loose grounding-coverage proxy — quote
-            # multi_method_eval for rigorous Hit@5 / Precision@5 / MRR / NDCG.
-            "hit_at_5_rate":     round(mean(r["hit_at_5"] for r in labelled), 4) if labelled else None,
+            # grounding_coverage_rate over LABELLED queries only (unlabelled excluded,
+            # not auto-passed). LOOSE proxy — NOT the retrieval headline. Quote
+            # multi_method_eval for rigorous Hit@5 0.95 / Precision@5 / MRR / NDCG.
+            "grounding_coverage_rate": round(mean(r["grounding_hit"] for r in labelled), 4) if labelled else None,
             "faithfulness_avg":  round(mean(r["faithfulness"] for r in rows), 4),
             "relevance_avg":     round(mean(r["condition_relevance"] for r in rows), 4),
             "p95_latency_ms":    sorted(r["latency_ms"] for r in rows)[int(0.95 * len(rows))],
@@ -135,14 +133,15 @@ def main():
         json.dump(bundle, f, indent=2, default=str)
 
     agg = bundle["aggregates"]
-    print(f"=== golden-set eval · n={bundle['n_queries']} · k={bundle['k']} "
+    print(f"=== grounding/faithfulness proxy · n={bundle['n_queries']} · k={bundle['k']} "
           f"· labelled={bundle['n_labelled']} ===")
-    print(_ascii_bar(f"hit_at_5 (loose, n={bundle['n_labelled']})", agg["hit_at_5_rate"]))
+    print("retrieval Hit@5 headline → evaluation/multi_method_eval.py (BM25 Hit@5 0.95, "
+          "Precision@5 0.36, MRR 0.90, NDCG@10 0.89)")
     print(_ascii_bar("faithfulness_avg",   agg["faithfulness_avg"]))
     print(_ascii_bar("condition_relevance",agg["relevance_avg"]))
+    print(_ascii_bar(f"grounding_coverage (loose,n={bundle['n_labelled']})", agg["grounding_coverage_rate"]))
     print(f"p95 latency: {agg['p95_latency_ms']} ms · avg citations/query: {agg['avg_citations']}")
-    print("note: loose substring proxy over labelled queries; rigorous Hit@5/"
-          "Precision@5/MRR/NDCG → evaluation/multi_method_eval.py")
+    print("note: grounding_coverage is a LOOSE substring proxy, NOT a retrieval hit@k headline.")
     print(f"\nwrote {OUT}")
 
 

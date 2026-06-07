@@ -1,10 +1,10 @@
 {
-  "_note": "Retrieval/grounding regression baseline. Reseeded 2026-06-07. hit_at_5_rate is a LOOSE substring grounding proxy over 18 labelled golden queries (unlabelled excluded, not auto-passed) \u2014 it replaced a vacuous any_hit=1.0-if-anything-returned metric. Rigorous Hit@5/Precision@5/MRR/NDCG live in evaluation/multi_method_eval.py + baseline_multi.json.",
+  "_note": "Retrieval/grounding regression baseline. Reseeded 2026-06-07. grounding_coverage_rate is a LOOSE substring proxy over labelled golden queries (NOT a retrieval hit@k headline). Rigorous Hit@5 0.95/Precision/MRR/NDCG \u2192 multi_method_eval.py.",
   "aggregates": {
-    "hit_at_5_rate": 1.0,
+    "grounding_coverage_rate": 1.0,
     "faithfulness_avg": 0.75,
     "relevance_avg": 0.8833,
-    "p95_latency_ms": 75,
+    "p95_latency_ms": 72,
     "avg_citations": 3
   }
 }

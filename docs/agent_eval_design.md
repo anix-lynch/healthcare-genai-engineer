@@ -28,6 +28,11 @@ construction and proves nothing. We avoid it explicitly:
 - **A perfect score would be the failure signal, not the success signal.** The committed
   baseline is `decision 0.94 / handoff 0.94` — it carries 6 documented boundary misses. If a
   future edit makes it `1.00 / 1.00`, suspect circular labelling and re-check the boundaries.
+- **Honest scope of the independence:** the 6 `MISS-` boundary cases are labelled from
+  protocol intent *against* the implementation and are the genuinely independent signal; the
+  44 agree-cases confirm the coded protocol matches clinical intent on the clear (non-boundary)
+  states. So the eval's discriminating power is concentrated in the boundary disagreements, not
+  spread evenly across all 50 — which is the right place for a protocol-conformance eval to bite.
 
 ### Clinical labelling rubric (independent ground truth)
 

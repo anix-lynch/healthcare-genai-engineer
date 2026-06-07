@@ -8,7 +8,7 @@ Use in CI:
 
 Tracked metrics + tolerances:
     RETRIEVAL / GROUNDING (eval_summary.json):
-        hit_at_5_rate        tolerance 0.05  (5pp drop blocks)  [real hit@k, not vacuous presence]
+        grounding_coverage_rate  tolerance 0.05  (loose grounding proxy; real Hit@5 → multi_method_eval)
         faithfulness_avg     tolerance 0.05
         relevance_avg        tolerance 0.10
         p95_latency_ms       tolerance +200ms (latency creeping UP blocks)
@@ -33,7 +33,7 @@ AGENT_CURRENT = REPO_ROOT / "outputs" / "agent_eval_summary.json"
 AGENT_BASELINE = REPO_ROOT / "evaluation" / "agent_baseline.json"
 
 TOLERANCES = {
-    "hit_at_5_rate":     0.05,
+    "grounding_coverage_rate": 0.05,
     "faithfulness_avg":  0.05,
     "relevance_avg":     0.10,
     "p95_latency_ms":    -200,   # NEGATIVE because higher latency = worse

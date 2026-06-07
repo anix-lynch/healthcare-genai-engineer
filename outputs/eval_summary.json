@@ -1,64 +1,31 @@
 {
-  "scanned_at": "2026-06-07T08:31:54Z",
+  "scanned_at": "2026-06-07T08:42:39Z",
   "k": 5,
   "n_queries": 20,
   "n_labelled": 18,
   "aggregates": {
-    "hit_at_5_rate": 1.0,
+    "grounding_coverage_rate": 1.0,
     "faithfulness_avg": 0.75,
     "relevance_avg": 0.8833,
-    "p95_latency_ms": 73,
+    "p95_latency_ms": 72,
     "avg_citations": 3
   },
   "per_query": [
     {
       "id": "Q-001",
       "query": "62yo male chest pain hypertension",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 73
+      "latency_ms": 68
     },
     {
       "id": "Q-002",
       "query": "elderly female chest pain emergency",
-      "hit_at_5": 1.0,
-      "labelled": true,
-      "faithfulness": 1.0,
-      "condition_relevance": 1.0,
-      "retrieved_count": 5,
-      "n_citations": 3,
-      "latency_ms": 53
-    },
-    {
-      "id": "Q-003",
-      "query": "diabetic patient with hyperglycemia",
-      "hit_at_5": 1.0,
-      "labelled": true,
-      "faithfulness": 1.0,
-      "condition_relevance": 1.0,
-      "retrieved_count": 5,
-      "n_citations": 3,
-      "latency_ms": 47
-    },
-    {
-      "id": "Q-004",
-      "query": "asthma attack respiratory distress",
-      "hit_at_5": 1.0,
-      "labelled": true,
-      "faithfulness": 1.0,
-      "condition_relevance": 1.0,
-      "retrieved_count": 5,
-      "n_citations": 3,
-      "latency_ms": 48
-    },
-    {
-      "id": "Q-005",
-      "query": "cancer patient emergency admission",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 1.0,
@@ -67,42 +34,53 @@
       "latency_ms": 46
     },
     {
-      "id": "Q-006",
-      "query": "obesity bariatric complication",
-      "hit_at_5": 1.0,
+      "id": "Q-003",
+      "query": "diabetic patient with hyperglycemia",
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
-      "condition_relevance": 0.3333333333333333,
+      "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 47
+      "latency_ms": 46
     },
     {
-      "id": "Q-007",
-      "query": "arthritis joint pain ibuprofen",
-      "hit_at_5": 1.0,
+      "id": "Q-004",
+      "query": "asthma attack respiratory distress",
+      "grounding_hit": 1.0,
       "labelled": true,
-      "faithfulness": 0.0,
+      "faithfulness": 1.0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
+      "latency_ms": 45
+    },
+    {
+      "id": "Q-005",
+      "query": "cancer patient emergency admission",
+      "grounding_hit": 1.0,
+      "labelled": true,
+      "faithfulness": 1.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 49
     },
     {
-      "id": "Q-008",
-      "query": "young male diabetes insulin",
-      "hit_at_5": 1.0,
+      "id": "Q-006",
+      "query": "obesity bariatric complication",
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
-      "condition_relevance": 1.0,
+      "condition_relevance": 0.3333333333333333,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 48
     },
     {
-      "id": "Q-009",
-      "query": "female cancer chemo paracetamol",
-      "hit_at_5": 1.0,
+      "id": "Q-007",
+      "query": "arthritis joint pain ibuprofen",
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 0.0,
       "condition_relevance": 1.0,
@@ -111,20 +89,42 @@
       "latency_ms": 47
     },
     {
-      "id": "Q-010",
-      "query": "geriatric hypertension aspirin",
-      "hit_at_5": 1.0,
+      "id": "Q-008",
+      "query": "young male diabetes insulin",
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
+      "latency_ms": 47
+    },
+    {
+      "id": "Q-009",
+      "query": "female cancer chemo paracetamol",
+      "grounding_hit": 1.0,
+      "labelled": true,
+      "faithfulness": 0.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 48
     },
     {
+      "id": "Q-010",
+      "query": "geriatric hypertension aspirin",
+      "grounding_hit": 1.0,
+      "labelled": true,
+      "faithfulness": 1.0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
+      "latency_ms": 47
+    },
+    {
       "id": "Q-011",
       "query": "child fever urgent care",
-      "hit_at_5": null,
+      "grounding_hit": null,
       "labelled": false,
       "faithfulness": 1.0,
       "condition_relevance": 1.0,
@@ -135,62 +135,62 @@
     {
       "id": "Q-012",
       "query": "chest pressure diaphoresis jaw radiation",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 0.3333333333333333,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 71
+      "latency_ms": 72
     },
     {
       "id": "Q-013",
       "query": "septic shock low blood pressure",
-      "hit_at_5": null,
+      "grounding_hit": null,
       "labelled": false,
       "faithfulness": 0.0,
-      "condition_relevance": 1.0,
-      "retrieved_count": 5,
-      "n_citations": 3,
-      "latency_ms": 47
-    },
-    {
-      "id": "Q-014",
-      "query": "stroke symptoms slurred speech weakness",
-      "hit_at_5": 1.0,
-      "labelled": true,
-      "faithfulness": 0.0,
-      "condition_relevance": 0.6666666666666666,
-      "retrieved_count": 5,
-      "n_citations": 3,
-      "latency_ms": 47
-    },
-    {
-      "id": "Q-015",
-      "query": "neutropenic fever cancer chemo",
-      "hit_at_5": 1.0,
-      "labelled": true,
-      "faithfulness": 1.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
       "latency_ms": 48
     },
     {
-      "id": "Q-016",
-      "query": "acute MI substernal pressure",
-      "hit_at_5": 1.0,
+      "id": "Q-014",
+      "query": "stroke symptoms slurred speech weakness",
+      "grounding_hit": 1.0,
+      "labelled": true,
+      "faithfulness": 0.0,
+      "condition_relevance": 0.6666666666666666,
+      "retrieved_count": 5,
+      "n_citations": 3,
+      "latency_ms": 46
+    },
+    {
+      "id": "Q-015",
+      "query": "neutropenic fever cancer chemo",
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 47
+      "latency_ms": 53
+    },
+    {
+      "id": "Q-016",
+      "query": "acute MI substernal pressure",
+      "grounding_hit": 1.0,
+      "labelled": true,
+      "faithfulness": 1.0,
+      "condition_relevance": 1.0,
+      "retrieved_count": 5,
+      "n_citations": 3,
+      "latency_ms": 51
     },
     {
       "id": "Q-017",
       "query": "pediatric respiratory distress wheezing",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 1.0,
@@ -201,35 +201,35 @@
     {
       "id": "Q-018",
       "query": "elderly fall head strike anticoagulant",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 0.3333333333333333,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 47
+      "latency_ms": 60
     },
     {
       "id": "Q-019",
       "query": "diabetic ketoacidosis vomiting",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 0.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 47
+      "latency_ms": 48
     },
     {
       "id": "Q-020",
       "query": "asthma exacerbation silent chest hypoxia",
-      "hit_at_5": 1.0,
+      "grounding_hit": 1.0,
       "labelled": true,
       "faithfulness": 1.0,
       "condition_relevance": 1.0,
       "retrieved_count": 5,
       "n_citations": 3,
-      "latency_ms": 48
+      "latency_ms": 47
     }
   ]
 }
