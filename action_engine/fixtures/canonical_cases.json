@@ -1,0 +1,102 @@
+{
+  "contract_version": "evidence.v1",
+  "note": "Labelled canonical evidence fixtures for the Phase-1 durable Bed Ops action loop. Categories drive the eval's applicable populations. Dispositions are NOT labelled here — they come from the existing decide_bed_disposition; these fixtures label the ACTION-LOOP behavior (accept/block, succeed, replay-idempotent, retry, escalate, false-success), not decision correctness (that lives in evaluation/agent_eval.py).",
+  "scenarios": [
+    {
+      "id": "happy-assign",
+      "category": "happy",
+      "correlation_id": "case-happy-assign",
+      "evidence": {"ingested_at": "2026-06-08T00:00:01Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "low", "er_state": {"available_beds": 3, "occupancy_pct": 70, "queue_length": 2}}
+    },
+    {
+      "id": "happy-board",
+      "category": "happy",
+      "correlation_id": "case-happy-board",
+      "evidence": {"ingested_at": "2026-06-08T00:00:02Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "medium", "er_state": {"available_beds": 0, "occupancy_pct": 96, "queue_length": 2}}
+    },
+    {
+      "id": "happy-hold",
+      "category": "happy",
+      "correlation_id": "case-happy-hold",
+      "evidence": {"ingested_at": "2026-06-08T00:00:03Z", "triage_level": "WAIT", "predicted_los_hours": 48, "bed_pressure_risk": "high", "er_state": {"available_beds": 1, "occupancy_pct": 80, "queue_length": 3}}
+    },
+    {
+      "id": "happy-discharge",
+      "category": "happy",
+      "correlation_id": "case-happy-discharge",
+      "evidence": {"ingested_at": "2026-06-08T00:00:04Z", "triage_level": "SOON", "predicted_los_hours": 10, "bed_pressure_risk": "low", "er_state": {"available_beds": 0, "occupancy_pct": 88, "queue_length": 4}}
+    },
+    {
+      "id": "replay-assign",
+      "category": "replay",
+      "correlation_id": "case-replay-assign",
+      "evidence": {"ingested_at": "2026-06-08T00:00:05Z", "triage_level": "NOW", "predicted_los_hours": 8, "bed_pressure_risk": "low", "er_state": {"available_beds": 2, "occupancy_pct": 60, "queue_length": 1}}
+    },
+    {
+      "id": "replay-board",
+      "category": "replay",
+      "correlation_id": "case-replay-board",
+      "evidence": {"ingested_at": "2026-06-08T00:00:06Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "medium", "er_state": {"available_beds": 0, "occupancy_pct": 97, "queue_length": 3}}
+    },
+    {
+      "id": "transient-assign",
+      "category": "transient",
+      "correlation_id": "case-transient-assign",
+      "inject": {"mode": "transient", "fail_attempts": 1},
+      "evidence": {"ingested_at": "2026-06-08T00:00:07Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "low", "er_state": {"available_beds": 3, "occupancy_pct": 72, "queue_length": 2}}
+    },
+    {
+      "id": "transient-hold",
+      "category": "transient",
+      "correlation_id": "case-transient-hold",
+      "inject": {"mode": "transient", "fail_attempts": 1},
+      "evidence": {"ingested_at": "2026-06-08T00:00:08Z", "triage_level": "WAIT", "predicted_los_hours": 48, "bed_pressure_risk": "high", "er_state": {"available_beds": 1, "occupancy_pct": 81, "queue_length": 3}}
+    },
+    {
+      "id": "exhausted-assign",
+      "category": "exhausted",
+      "correlation_id": "case-exhausted-assign",
+      "inject": {"mode": "permanent"},
+      "evidence": {"ingested_at": "2026-06-08T00:00:09Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "low", "er_state": {"available_beds": 2, "occupancy_pct": 65, "queue_length": 2}}
+    },
+    {
+      "id": "exhausted-discharge",
+      "category": "exhausted",
+      "correlation_id": "case-exhausted-discharge",
+      "inject": {"mode": "permanent"},
+      "evidence": {"ingested_at": "2026-06-08T00:00:10Z", "triage_level": "SOON", "predicted_los_hours": 12, "bed_pressure_risk": "low", "er_state": {"available_beds": 0, "occupancy_pct": 90, "queue_length": 5}}
+    },
+    {
+      "id": "false-success-assign",
+      "category": "false_success",
+      "correlation_id": "case-false-assign",
+      "inject": {"mode": "false_success"},
+      "evidence": {"ingested_at": "2026-06-08T00:00:11Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "low", "er_state": {"available_beds": 3, "occupancy_pct": 70, "queue_length": 2}}
+    },
+    {
+      "id": "false-success-hold",
+      "category": "false_success",
+      "correlation_id": "case-false-hold",
+      "inject": {"mode": "false_success"},
+      "evidence": {"ingested_at": "2026-06-08T00:00:12Z", "triage_level": "WAIT", "predicted_los_hours": 48, "bed_pressure_risk": "high", "er_state": {"available_beds": 1, "occupancy_pct": 82, "queue_length": 3}}
+    },
+    {
+      "id": "invalid-triage",
+      "category": "invalid",
+      "correlation_id": "case-invalid-triage",
+      "evidence": {"ingested_at": "2026-06-08T00:00:13Z", "triage_level": "EMERGENT", "predicted_los_hours": 6, "bed_pressure_risk": "low", "er_state": {"available_beds": 3, "occupancy_pct": 70, "queue_length": 2}}
+    },
+    {
+      "id": "invalid-los",
+      "category": "invalid",
+      "correlation_id": "case-invalid-los",
+      "evidence": {"ingested_at": "2026-06-08T00:00:14Z", "triage_level": "NOW", "predicted_los_hours": -5, "bed_pressure_risk": "low", "er_state": {"available_beds": 3, "occupancy_pct": 70, "queue_length": 2}}
+    },
+    {
+      "id": "invalid-risk-and-state",
+      "category": "invalid",
+      "correlation_id": "case-invalid-risk",
+      "evidence": {"ingested_at": "2026-06-08T00:00:15Z", "triage_level": "NOW", "predicted_los_hours": 6, "bed_pressure_risk": "extreme", "er_state": {"available_beds": -1, "occupancy_pct": 130, "queue_length": 2}}
+    }
+  ]
+}

@@ -44,8 +44,17 @@ jobs:
       - name: make adversarial-eval
         run: make adversarial-eval
 
-      # Regression gate — compares vs evaluation/baseline.json + agent_baseline.json
-      # Exits 1 if any retrieval/grounding OR agent/handoff metric drops past tolerance
+      # Phase-1 durable Bed Ops action-loop eval — runs the real action loop and
+      # writes outputs/action_eval_summary.json (+ durable outputs/action_loop.db).
+      # Exits non-zero on its own if any of the 11 action-loop metrics breaches
+      # its absolute floor; the gate re-checks the artifact below.
+      - name: make action-eval
+        run: make action-eval
+
+      # Regression gate — compares vs evaluation/baseline.json + agent_baseline.json,
+      # and re-checks outputs/action_eval_summary.json against absolute Phase-1
+      # floors. Exits 1 on any retrieval/grounding OR agent/handoff regression,
+      # or any durable-action-loop floor breach.
       - name: make gate
         run: make gate
 
@@ -59,4 +68,6 @@ jobs:
             outputs/eval_summary.json
             outputs/agent_eval_summary.json
             outputs/adversarial_summary.json
+            outputs/action_eval_summary.json
+            outputs/action_loop.db
           retention-days: 30

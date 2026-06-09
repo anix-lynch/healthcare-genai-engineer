@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from fastapi import FastAPI
 
-from app.routers import ask, health, web, vertex
+from app.routers import act, ask, health, web, vertex
 
 # Weave tracing — no-op if WANDB_API_KEY is absent (local dev without key)
 if os.environ.get("WANDB_API_KEY"):
@@ -30,7 +30,8 @@ app = FastAPI(
 app.include_router(web.router, tags=["web"])           # GET / → single-page RAG visualizer
 app.include_router(vertex.router, tags=["vertex"])     # GET /vertex → ER Insight Console
 app.include_router(health.router, tags=["meta"])
-app.include_router(ask.router, prefix="/v1", tags=["rag"])
+app.include_router(ask.router, prefix="/v1", tags=["rag"])      # POST /v1/ask → retrieve + answer (advises)
+app.include_router(act.router, prefix="/v1", tags=["action"])   # POST /v1/act → durable action loop (acts)
 
 
 if __name__ == "__main__":

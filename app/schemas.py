@@ -34,6 +34,40 @@ class ERState(BaseModel):
     avg_wait_minutes: int | None = Field(None, ge=0)
 
 
+class ActRequest(BaseModel):
+    """Evidence for the durable Bed Ops action loop (POST /v1/act).
+
+    Unlike /v1/ask (which retrieves and returns an answer), this drives a real
+    state-changing action: the same canonical evidence the offline action eval
+    uses, accepted live so the service *acts* instead of only advising.
+    """
+    model_config = ConfigDict(extra="forbid")
+    correlation_id: str = Field(..., description="stable id for this case; replay-safe (idempotent)")
+    triage_level: TriageLevel = Field(..., description="acute urgency bucket")
+    er_state: ERState = Field(..., description="live ER operational context")
+    predicted_los_hours: float | None = Field(None, ge=0.0)
+    bed_pressure_risk: RiskLevel = "low"
+    ingested_at: str | None = Field(None, description="evidence freshness stamp (ISO8601)")
+
+
+class ActReceipt(BaseModel):
+    """Proof of a real action: durable before/after state, not advice JSON."""
+    model_config = ConfigDict(extra="forbid")
+    correlation_id: str
+    accepted: bool
+    blocked_reason: list[str] | None = None
+    disposition: str | None = None
+    task_id: str | None = None
+    acknowledged: bool = False
+    before_committed: bool | None = Field(None, description="durable world-state BEFORE the action")
+    after_committed: bool | None = Field(None, description="durable world-state AFTER the action (before != after proves it acted)")
+    outcome_verified: bool | None = Field(None, description="state re-read and compared to intent")
+    false_success_detected: bool = False
+    attempts_used: int | None = None
+    max_attempts: int | None = None
+    escalation_id: str | None = Field(None, description="set when recovery was exhausted and a human task was created")
+
+
 class PredictionSignal(BaseModel):
     model_config = ConfigDict(extra="forbid")
     risk_level: RiskLevel

@@ -1,8 +1,8 @@
 # healthcare-genai-engineer
 
-> 🟦 **L2 Action** part of the [L1→L3 healthcare AI platform](https://gozeroshot.dev) — Truth → Features → Signals → Actions → Human adoption. This repo = grounded, guardrailed RAG that turns retrieved truth into cited answers.
+> 🟦 **L2 Action** part of the [L1→L3 healthcare AI platform](https://gozeroshot.dev) — Truth → Features → Signals → Actions → Human adoption. This repo **advises and acts**: a grounded, guardrailed RAG path returns cited answers (`/v1/ask`), and an idempotent action loop commits real Bed Ops decisions to durable state with before/after receipts (`/v1/act`) — not recommendation-only JSON.
 
-> **Healthcare GenAI service** — FastAPI + BM25/dense hybrid retrieval + bounded multi-agent handoff + PII guardrails + regression gate. ER triage → Bed Ops → Care Follow-up, end-to-end.
+> **Healthcare GenAI service** — FastAPI + BM25/dense hybrid retrieval + PII guardrails, plus a durable action engine (evidence intake → decision → idempotent state change → receiver ACK → outcome verification → bounded retry / human escalation), all behind one regression gate. ER triage → Bed Ops → Care Follow-up, end-to-end.
 
 ![Demo](demo.gif)
 
@@ -21,7 +21,21 @@ POST /v1/ask
   → orchestration / override rules
   → output guard (citation valid · forbidden actions · length)
   → JSON response with cited source_ids + warnings + prediction signal
+
+POST /v1/act        # the service ACTS, not just answers
+  → validate canonical evidence contract (fail closed on stale/invalid)
+  → decide Bed Ops disposition (same tested decision as /v1/ask)
+  → durable task + receiver ACK (ownership is a real state transition)
+  → idempotent state-changing tool (replay applies once, no duplicate)
+  → verify outcome by re-reading state (blocks "said done but isn't")
+  → bounded retry; on exhaustion, a machine-readable human-escalation task
+  → receipt: before_committed != after_committed proves it acted
 ```
+
+Proof gate (`make action-eval`, 11/11 green): contract block 100% · durable
+state-transition 100% · duplicate side-effect 0% · false-success 0% · bounded
+retry + escalation 100%. The decision/action path is deterministic — zero
+model-inference spend, worst-case cost bounded by the retry budget.
 
 ---
 

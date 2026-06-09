@@ -4,7 +4,9 @@ Use in CI:
     python -m evaluation.regression_gate
         compares outputs/eval_summary.json     vs evaluation/baseline.json        (retrieval/grounding)
         compares outputs/agent_eval_summary.json vs evaluation/agent_baseline.json (agent/handoff)
-        exits 1 if any tracked metric drops by more than its tolerance
+        checks  outputs/action_eval_summary.json against absolute Phase-1 floors  (durable action loop)
+        exits 1 if any tracked metric drops by more than its tolerance, or any
+        action-loop metric breaches its absolute floor/ceiling
 
 Tracked metrics + tolerances:
     RETRIEVAL / GROUNDING (eval_summary.json):
@@ -31,6 +33,7 @@ CURRENT = REPO_ROOT / "outputs" / "eval_summary.json"
 BASELINE = REPO_ROOT / "evaluation" / "baseline.json"
 AGENT_CURRENT = REPO_ROOT / "outputs" / "agent_eval_summary.json"
 AGENT_BASELINE = REPO_ROOT / "evaluation" / "agent_baseline.json"
+ACTION_CURRENT = REPO_ROOT / "outputs" / "action_eval_summary.json"
 
 TOLERANCES = {
     "grounding_coverage_rate": 0.05,
@@ -46,6 +49,23 @@ AGENT_TOLERANCES = {
     "decision_correctness": 0.05,
     "tool_call_success":    0.05,
     "handoff_correctness":  0.05,
+}
+
+# Phase-1 action-loop metrics are ABSOLUTE floors/ceilings, not regression
+# deltas: the durable control loop either holds the property or it doesn't.
+# ("min", x) = must be >= x ; ("max", x) = must be <= x (rate of a bad event).
+ACTION_FLOORS = {
+    "contract_valid_accept_rate":              ("min", 1.00),
+    "contract_invalid_block_rate":             ("min", 1.00),
+    "durable_task_creation_rate":              ("min", 1.00),
+    "receiver_ack_rate":                       ("min", 1.00),
+    "successful_action_state_transition_rate": ("min", 1.00),
+    "duplicate_side_effect_rate":              ("max", 0.00),
+    "outcome_verification_coverage":           ("min", 1.00),
+    "false_success_rate":                      ("max", 0.00),
+    "bounded_retry_compliance":                ("min", 1.00),
+    "exhausted_failure_escalation_rate":       ("min", 1.00),
+    "trace_reconstruction_rate":               ("min", 1.00),
 }
 
 
@@ -86,6 +106,22 @@ def check_agent_regression(current: dict, baseline: dict) -> list[str]:
     return _check(current.get("metrics", {}), baseline.get("metrics", {}), AGENT_TOLERANCES)
 
 
+def check_action_floors(current: dict) -> list[str]:
+    """Phase-1 action-loop metrics vs absolute floors/ceilings. Empty = pass."""
+    metrics = current.get("metrics", {})
+    violations: list[str] = []
+    for name, (direction, bound) in ACTION_FLOORS.items():
+        val = metrics.get(name)
+        if val is None:
+            violations.append(f"action.{name}: missing from action_eval_summary.json")
+            continue
+        if direction == "min" and val < bound:
+            violations.append(f"action.{name}: {val} < floor {bound}")
+        if direction == "max" and val > bound:
+            violations.append(f"action.{name}: {val} > ceiling {bound}")
+    return violations
+
+
 def main():
     if not CURRENT.exists():
         sys.exit(f"current eval missing: {CURRENT}. Run `python -m evaluation.ragas_runner` first.")
@@ -109,9 +145,15 @@ def main():
                 json.loads(AGENT_BASELINE.read_text()),
             )
 
+    # Phase-1 action-loop gate — absolute floors, no baseline needed. The loop
+    # either holds the durable-action properties or the build fails.
+    if ACTION_CURRENT.exists():
+        violations += check_action_floors(json.loads(ACTION_CURRENT.read_text()))
+
     print("=== regression gate ===")
     if not violations:
-        print("✅ PASS — no metric regressed past tolerance (retrieval + grounding + agent/handoff)")
+        print("✅ PASS — no regression past tolerance + action-loop floors hold "
+              "(retrieval + grounding + agent/handoff + durable action loop)")
         sys.exit(0)
     print(f"❌ FAIL — {len(violations)} violations:")
     for v in violations:

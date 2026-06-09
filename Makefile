@@ -1,4 +1,4 @@
-.PHONY: install serve demo test eval gate clean agent-eval adversarial-eval
+.PHONY: install serve demo test eval gate clean agent-eval adversarial-eval action-eval
 
 install:
 	pip install -r requirements.txt
@@ -41,3 +41,12 @@ agent-eval:
 # mechanical + precision checks. Writes outputs/adversarial_summary.json.
 adversarial-eval:
 	python -m evaluation.adversarial_eval
+
+# Phase-1 durable Bed Ops action-loop eval — runs the real loop over canonical
+# evidence fixtures and computes the 11 action-loop metrics (contract intake,
+# durable task + receiver ACK, idempotent state change, outcome verification,
+# bounded retry, exhausted escalation, trace reconstruction). Writes
+# outputs/action_eval_summary.json + durable receipts in outputs/action_loop.db;
+# exits 1 if any metric breaches its absolute Phase-1 floor.
+action-eval:
+	python -m evaluation.action_eval
